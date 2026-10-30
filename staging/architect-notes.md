@@ -1234,3 +1234,14 @@ boundary change that has bitten before (lessons-learned, 0.3.2).
    harmless for RED, but `Blu`, `Gre`, `Yel`, `Mag` and `Cya` read as typos. A
    display-name lookup for colours in `text_content` would let the director
    choose the words.
+
+---
+
+## AN-021 — resolved
+
+**Beta 0.5, after closeout.** The director ruled the convention: yes/no flags
+read 0 = no / 1 = yes, and other parameters are option lists (D-067). Bomb and
+LineSlice were flipped to match, in the engine, the workbook, its param notes
+and the frozen legacy dataset. The project now has one flag vocabulary. Item 3
+of the original note ("state polarity next to the column") is also done: the
+param notes sheet carries a convention line.

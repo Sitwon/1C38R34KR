@@ -115,10 +115,13 @@ const SHAKE_CASCADE_UNTIL_STABLE := 2  ## ignore the finite limit
 ## Shared targeting / payout vocabulary.
 const TARGETING_RANDOM := 0
 const TARGETING_TARGETED := 1
-const DEAL_DAMAGE_YES := 0
-const DEAL_DAMAGE_NO := 1
-const GAIN_CHARGE_YES := 0
-const GAIN_CHARGE_NO := 1
+## 0 = no, 1 = yes, like every yes/no flag in the content (D-067). Through
+## beta 0.4 these two read the other way round, inherited from the alpha; the
+## frozen legacy dataset was flipped with them, so it still means the same.
+const DEAL_DAMAGE_YES := 1
+const DEAL_DAMAGE_NO := 0
+const GAIN_CHARGE_YES := 1
+const GAIN_CHARGE_NO := 0
 
 ## EFFECT_LINESLICE: dimension
 const LINE_DIMENSION_ROW := 0

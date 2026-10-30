@@ -1655,3 +1655,48 @@ scripted:
 against the file they actually came from. The old master is untouched. **The
 next build returns to a single unsuffixed workbook, and the exporter path goes
 back with it.**
+
+---
+
+## D-067 — Every yes/no flag reads 0 = no, 1 = yes
+
+**Beta 0.5. Director instruction, after the build. Supersedes the polarity
+remark in D-053.**
+
+Bomb and LineSlice `dealDamage`/`gainCharge` read 0 = yes, 1 = no,
+inherited from the alpha. Every other yes/no flag read the opposite way:
+Shake's `matches`, all six Mine triggers, and `targeting` (0 random,
+1 targeted). That inversion cost this build its largest data correction
+(AN-021).
+
+The rule is now:
+
+- **Yes/no and random/targeted flags read 0 = no / random and 1 = yes /
+  targeted.**
+- **Every other parameter is an option list.** Its integers are arbitrary and
+  are defined per column: Shake composition, special handling and cascades;
+  LineSlice dimension and retention; Transform's special treatment.
+
+Only the four Bomb/LineSlice flags changed. They are now flipped in four places
+together:
+
+1. **The engine.** `Content.DEAL_DAMAGE_*`/`GAIN_CHARGE_*`, and the Bomb
+   default that bypassed them.
+2. **The working workbook.** Eleven FNC rows, the "param notes" text, and a
+   convention note.
+3. **The exported CSVs.**
+4. **The frozen legacy dataset**, plus its pinned rows in `csv_rows.json`.
+
+Item 4 is what keeps the Alpha oracle honest. The Alpha still reads its own
+data the old way, and the beta reads the flipped legacy rows the new way, so
+the two engines see the same meaning.
+
+**Proof:**
+
+- the fast parity tier on legacy data stays 150/150;
+- the content smoke matrix reproduces its previous result exactly (244
+  battles, 187 Hacker wins).
+
+Fingerprints move: live content to `ce01939e-fwf`, legacy to `ca95eed5-96w`.
+Both hash the raw tuple integers. `Save.SCHEMA` 4 → 5, because an armed Bomb
+saves its raw flags and a schema-4 Bomb would detonate with both inverted.

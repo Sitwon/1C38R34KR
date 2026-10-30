@@ -1,5 +1,5 @@
 {
-  "_comment": "Alpha parseCsv output. Pins line numbers and empty-row handling. Alpha-derived, EXCEPT `bos` and `fnc`, which beta 0.4 authors beyond the alpha per that build's authorization \u00a716 and which are therefore pinned from the beta's own exported CSVs.",
+  "_comment": "Alpha parseCsv output. Pins line numbers and empty-row handling. Alpha-derived, EXCEPT `bos` and `fnc`, which beta 0.4 authors beyond the alpha per that build's authorization §16 and which are therefore pinned from the beta's own exported CSVs. Beta 0.5 (D-067): the fnc rows' Bomb/LineSlice deal-damage and gain-charge flags are flipped to 0 = no / 1 = yes, with the legacy dataset.",
   "datasets": {
     "bos": {
       "rows": [
@@ -127,7 +127,7 @@
             "",
             "",
             "",
-            "0:0:1"
+            "0:1:0"
           ]
         },
         {
@@ -203,7 +203,7 @@
             "",
             "",
             "",
-            "0:0:1"
+            "0:1:0"
           ]
         },
         {
@@ -260,7 +260,7 @@
             "",
             "",
             "",
-            "0:0:1"
+            "0:1:0"
           ]
         },
         {
@@ -317,7 +317,7 @@
             "",
             "",
             "",
-            "0:1:0:0:1"
+            "0:1:0:1:0"
           ]
         },
         {
@@ -336,7 +336,7 @@
             "",
             "",
             "",
-            "1:0:1"
+            "1:1:0"
           ]
         },
         {
@@ -393,7 +393,7 @@
             "",
             "",
             "",
-            "0:0:0"
+            "0:1:1"
           ]
         },
         {

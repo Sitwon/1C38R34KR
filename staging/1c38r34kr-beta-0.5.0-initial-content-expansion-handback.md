@@ -162,8 +162,8 @@ rejects a bare `%` in a template.
 
 | Item | Change | Decision |
 | --- | --- | --- |
-| Content fingerprint | `617fbf1a-fwf` | D-064 |
-| Battle save | schema 3 → 4 (Mine `damage`/`triggers`); old saves rejected | D-030 |
+| Content fingerprint | `ce01939e-fwf` (legacy dataset `ca95eed5-96w`) | D-064, D-067 |
+| Battle save | schema 3 → 4 (Mine `damage`/`triggers`) → 5 (flag polarity); old saves rejected | D-030, D-067 |
 | Session envelope | unchanged at 3 | |
 | Battle-log metrics | schema 1 → 2 (`mine` bucket, `environment_damage_taken`) | |
 
@@ -337,7 +337,7 @@ play on the next device session.
 
 ## 17. Decisions added
 
-D-053 through D-066:
+D-053 through D-067:
 
 | Decision | Topic |
 | --- | --- |
@@ -355,6 +355,7 @@ D-053 through D-066:
 | D-064 | Schemas |
 | D-065 | Mine art |
 | D-066 | Working workbook |
+| D-067 | One flag polarity: 0 = no, 1 = yes |
 
 The §25 requirements map as follows:
 
@@ -366,7 +367,7 @@ The §25 requirements map as follows:
 
 ## 18. Architect notes
 
-AN-020 through AN-028 were added; none were resolved.
+AN-020 through AN-028 were added. AN-021 is resolved by D-067.
 
 | Note | Topic |
 | --- | --- |
@@ -411,7 +412,7 @@ Appended under "Beta 0.5.0":
 | Q | Doc | Built |
 | --- | --- | --- |
 | 1 | §23: Boss content out of scope | Changed BOS strong sets accepted as correct |
-| 2 | Workbook as supplied | Flags flipped on STOMP, SHELL, PEPPER (`0:0:1`), NECTAR (`0:0:0`) and SPOTTER (`0:1:0:0:1`) |
+| 2 | Workbook as supplied | Flags flipped on STOMP, SHELL, PEPPER (`0:0:1`), NECTAR (`0:0:0`) and SPOTTER (`0:1:0:0:1`), in the old polarity. Under D-067 these read `0:1:0`, `0:1:1` and `0:1:0:1:0` |
 | 3 | No System targeting rule | General random-valid-target rule (D-059); no load error |
 | 4 | PSV_010 `CONTNUAL` | Corrected in the workbook |
 | 5 | §9: "+1 per sliced Packet" | Once per Sync (D-062) |
@@ -419,6 +420,7 @@ Appended under "Beta 0.5.0":
 | 7 | Lethal ordering | Action damage first, then Mines oldest first |
 | 8 | §8.2 rate scope | Direct hits only, not following cascade waves (D-054) |
 | 9 | §10/§18.9: retained overlay on NEU | Rule "neutral carries no overlay" kept; SMOG changed to `0:0`. The §18.9 retention assertion is replaced by a stripping assertion |
+| — | Bomb/LineSlice flags read 0 = yes | After closeout, by director instruction: every yes/no flag reads 0 = no, 1 = yes; workbook, param notes, engine and legacy dataset flipped together (D-067) |
 | 10 | `…-working(2).xlsx` | `breach-datastructures-working.xlsx` is the source for this build; exporter repointed (D-066) |
 
 **My own interpretations:**

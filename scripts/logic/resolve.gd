@@ -1159,7 +1159,7 @@ static func _grid_view(board: Array) -> Array:
 
 ## Pre-parameterization Bombs granted no charge at all, so an overlay saved
 ## without an explicit selection keeps that behaviour.
-const GAIN_CHARGE_NO_DEFAULT := 1
+const GAIN_CHARGE_NO_DEFAULT := Content.GAIN_CHARGE_NO
 
 ## Default footprint for an overlay armed before area patterns were authored.
 const DEFAULT_BLAST_PATTERN := Areas.SQUARE_3X3

@@ -1,19 +1,19 @@
 FNC_ID,name,cost,payload,notes,quantity,countdown,areaPattern,magnitude,damage,startCharged,axisTarget,axisResult,params
-FNC_001,BOMB,7,EFFECT_BOMB,generic bomb effect,2,2,AREA_SQUARE_3X3,,,,,,0:0:1
+FNC_001,BOMB,7,EFFECT_BOMB,generic bomb effect,2,2,AREA_SQUARE_3X3,,,,,,0:1:0
 FNC_002,BUFF,8,EFFECT_BUFF,player buffer,1,,,5,,,,,
 FNC_003,ATTACK,10,EFFECT_ATTACK,direct damage to opponent,,,,,30,,,,
 FNC_004,DRAIN,9,EFFECT_DRAIN,"unit target, remove all charge",,,,,,,,,
-FNC_005,EBOMB,7,EFFECT_BOMB,,1,3,AREA_SQUARE_3X3_CARDINAL_2,,,,,,0:0:1
+FNC_005,EBOMB,7,EFFECT_BOMB,,1,3,AREA_SQUARE_3X3_CARDINAL_2,,,,,,0:1:0
 FNC_006,SHIELD,8,EFFECT_SHIELD,,2,,,2,,,,,
 FNC_007,SHOWCASE,9,FNC_008:FNC_009,"chained function example, costs of called functions are ignored",,,,,,,,,
-FNC_008,ONEBOMB,5,EFFECT_BOMB,chained function payload,1,2,AREA_SQUARE_3X3,,,,,,0:0:1
+FNC_008,ONEBOMB,5,EFFECT_BOMB,chained function payload,1,2,AREA_SQUARE_3X3,,,,,,0:1:0
 FNC_009,ONESHIELD,5,EFFECT_SHIELD,chained function payload,1,,,2,,,,,
 FNC_010,SCRAMBLE,3,EFFECT_SHAKE,re-arrange the packets on the whole screen - see param notes,,,,,,Y,,,0:0:0:0
-FNC_011,DATACUT,7,EFFECT_LINESLICE,"slice targeted row, deal damage, no charge",1,,,,,,,,0:1:0:0:1
-FNC_012,PLINK,5,EFFECT_BOMB,slice cross centered on target,1,,AREA_CARDINAL_1,,,,,,1:0:1
+FNC_011,DATACUT,7,EFFECT_LINESLICE,"slice targeted row, deal damage, no charge",1,,,,,,,,0:1:0:1:0
+FNC_012,PLINK,5,EFFECT_BOMB,slice cross centered on target,1,,AREA_CARDINAL_1,,,,,,1:1:0
 FNC_013,COERCE,7,EFFECT_TRANSFORM,turn neutral packets into attacker axes,99,,,,,Y,NEU,YEL:STR,0:0
 FNC_014,EBUFF,9,EFFECT_BUFF,when countdown goes off those same packets become the buff,3,2,,5,,,,,
-FNC_015,SPAM,7,EFFECT_BOMB,"many small bombs, charges",3,1,AREA_CARDINAL_1,,,,,,0:0:0
+FNC_015,SPAM,7,EFFECT_BOMB,"many small bombs, charges",3,1,AREA_CARDINAL_1,,,,,,0:1:1
 FNC_016,GREENING,0,EFFECT_TRANSFORM,turn other packets into green,3,,,,,,ALL,GRE,0:1
 FNC_017,SNEAK,0,EFFECT_TRANSFORM,turn other packets into magenta,2,,,,,,ALL,MAG,0:1
 FNC_018,DATABEND,0,EFFECT_SHAKE,supports ODANSHAY's passive,,,,,,,,,1:2:1:2
@@ -23,19 +23,19 @@ FNC_021,LOGICBOMBEXPLODE,0,EFFECT_ATTACK,supports NEHBOCYET's passive,,,,,40,,,,
 FNC_022,BRAINSCRAMBLE,0,EFFECT_ATTACK,supports ECHOFALL's passive,,,,,30,,,,
 FNC_023,VOLATILE,6,EFFECT_MINE,"countdown tile does nothing when it expires but deals damage to the non-controller combatant when removed, params determine removal required",4,4,,,20,,,,1:1:0:0:0:0
 FNC_024,TUSK,10,EFFECT_ATTACK,MAMMOTH main attack: direct LINK damage,,,,,28,,,,
-FNC_025,STOMP,8,EFFECT_ATTACK:EFFECT_BOMB,MAMMOTH: low direct damage then instant board explosion,1,,AREA_SQUARE_3X3,,12,,,,0:0:1
+FNC_025,STOMP,8,EFFECT_ATTACK:EFFECT_BOMB,MAMMOTH: low direct damage then instant board explosion,1,,AREA_SQUARE_3X3,,12,,,,0:1:0
 FNC_026,THICKHIDE,9,EFFECT_SHIELD,MAMMOTH: single large shield,1,,,6,,,,,
 FNC_027,FORAGE,7,FNC_028:FNC_029,"MAMMOTH board feed: 3 packets to favored color RED, 3 to favored shape SQU; chained FNC costs ignored",,,,,,,,,
 FNC_028,FORAGECOLOR,0,EFFECT_TRANSFORM,FORAGE payload: 3 random packets -> RED,3,,,,,,ALL,RED,0:1
 FNC_029,FORAGESHAPE,0,EFFECT_TRANSFORM,FORAGE payload: 3 random packets -> SQU,3,,,,,,ALL,SQU,0:1
-FNC_030,SHELL,11,EFFECT_BOMB,ARCHON artillery: single long-fuse large bomb; telegraph the big hit,1,4,AREA_SQUARE_5X5,,,,,,0:0:1
+FNC_030,SHELL,11,EFFECT_BOMB,ARCHON artillery: single long-fuse large bomb; telegraph the big hit,1,4,AREA_SQUARE_5X5,,,,,,0:1:0
 FNC_031,SIGHT,6,EFFECT_TRANSFORM,ARCHON: 4 packets -> YEL (feeds ATTACKER / shell board),4,,,,,,ALL,YEL,0:1
-FNC_032,SPOTTER,5,EFFECT_LINESLICE,"ARCHON: slice a row for pressure while the shell ticks; damage, no charge",1,,,,,,,,0:1:0:0:1
+FNC_032,SPOTTER,5,EFFECT_LINESLICE,"ARCHON: slice a row for pressure while the shell ticks; damage, no charge",1,,,,,,,,0:1:0:1:0
 FNC_033,RAGE,8,EFFECT_ATTACK,HARRIER berserker spike,,,,,22,,,,
 FNC_034,FRENZY,7,EFFECT_BUFF,HARRIER: 2 packet buffs mag 4 cd 1 — builds match pressure,2,1,,4,,,,,
-FNC_035,PEPPER,6,EFFECT_BOMB,GNAT rush: many tiny instant bombs,4,,AREA_CARDINAL_1,,,,,,0:0:1
+FNC_035,PEPPER,6,EFFECT_BOMB,GNAT rush: many tiny instant bombs,4,,AREA_CARDINAL_1,,,,,,0:1:0
 FNC_036,DRIP,5,EFFECT_ATTACK,LEECH attrition: small LINK chip,,,,,10,,,,
 FNC_037,SMOG,7,EFFECT_TRANSFORM,SMOGGER: 5 packets -> NEU (pollute usable syncs),5,,,,,,ALL,NEU,0:0
 FNC_038,STATIC,6,EFFECT_SHAKE,"STATICIAN: randomize non-specials, strip enemy overlays, allow sync, cascades",,,,,,,,,1:2:1:1
 FNC_039,BLOOM,6,EFFECT_TRANSFORM,ORCHID: 4 packets -> MAG (mutual resource; orchid loadout exploits MAG),4,,,,,,ALL,MAG,0:1
-FNC_040,NECTAR,9,EFFECT_BOMB,ORCHID payoff bomb after bloom,2,2,AREA_SQUARE_3X3,,,,,,0:0:0
+FNC_040,NECTAR,9,EFFECT_BOMB,ORCHID payoff bomb after bloom,2,2,AREA_SQUARE_3X3,,,,,,0:1:1

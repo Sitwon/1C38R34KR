@@ -38,7 +38,11 @@ extends RefCounted
 ## authorization requires the metrics state needed for consistent continuation
 ## to be part of the save, and a battle that resumes reporting half its damage
 ## is exactly the failure that requirement exists to prevent.
-const SCHEMA := 4
+##
+## Bumped to 5 (D-067): an armed Bomb saves its raw deal-damage and gain-charge
+## flags, and their polarity flipped. A schema-4 Bomb would detonate with both
+## inverted, so it is rejected rather than reinterpreted.
+const SCHEMA := 5
 const SAVE_PATH := "user://save.json"
 
 

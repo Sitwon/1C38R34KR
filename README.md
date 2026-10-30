@@ -472,7 +472,7 @@ Thirteen CSV datasets are the source of truth, exported from the workbook by
 Godot's translation importer leaves them alone, and `*.csv` is in the export
 filter so the raw files ship inside the APK.
 
-Content is hashed into a **fingerprint** (`617fbf1a-fwf` as of beta 0.5) using a JS-compatible
+Content is hashed into a **fingerprint** (`ce01939e-fwf` as of beta 0.5) using a JS-compatible
 canonical JSON encoding, so the beta and the alpha agree on the hash for
 identical content. The fingerprint appears on the title screen, in every save,
 and on every battle log record — it is the first question worth asking when a
@@ -491,7 +491,7 @@ rejected rather than restored against different rules than it was made under.
 | `staging/1c38r34kr-beta-0.2.0-build-authorization-revised.md` | the previous build's scope |
 | `staging/1c38r34kr-beta-0.2.0-authorization-review.md` | the pre-implementation review of it, and the seven items that needed resolving |
 | `staging/1c38r34kr-beta-0.1.0-build-authorization.md` | the previous build's scope, kept for reference |
-| `staging/decisions.md` | append-only decision log, D-001..D-066 |
+| `staging/decisions.md` | append-only decision log, D-001..D-067 |
 | `staging/port-notes.md` | every place the translation is non-literal, P-001..P-045 |
 | `staging/architect-notes.md` | design items raised during the port that must **not** be built as part of it |
 | `staging/1c38r34kr-beta-0.3.0-port-handback.md` | **the close-out** — what shipped, what the verification caught, and the final diff review |

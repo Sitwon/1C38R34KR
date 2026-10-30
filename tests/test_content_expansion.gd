@@ -15,7 +15,7 @@ extends RefCounted
 
 ## Workbook values, read back. If these drift the workbook changed, and the
 ## change should be deliberate.
-const LIVE_FINGERPRINT := "617fbf1a-fwf"
+const LIVE_FINGERPRINT := "ce01939e-fwf"
 const LIVE_WARNINGS := 18
 
 const RED := Types.PacketColor.RED

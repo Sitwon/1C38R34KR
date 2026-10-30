@@ -42,6 +42,8 @@ const AXIS_NAMES: Array[String] = ["axisTarget", "axisResult"]
 
 ## targeting : dealDamage : gainCharge
 ## Every live Bomb row supplies all three; trailing defaults are never inferred.
+## Yes/no and random/targeted flags read 0 = no / random, 1 = yes / targeted
+## (D-067); the rest are option lists whose integers are defined per field.
 const BOMB_TUPLE: Array[Dictionary] = [
 	{"name": "targeting", "min": 0, "max": 1},
 	{"name": "dealDamage", "min": 0, "max": 1},
@@ -79,9 +81,8 @@ const TRANSFORM_TUPLE: Array[Dictionary] = [
 ]
 
 
-## The six Mine trigger flags, each 0 (no) / 1 (yes). Unlike every other
-## tuple here, 1 means YES — the Mine param notes define it that way, and the
-## names say which way round each one reads.
+## The six Mine trigger flags, each 0 (no) / 1 (yes), the same polarity as
+## every other yes/no flag (D-067).
 ##   slicedByOwner : slicedByOpponent : destroyedByOwner : destroyedByOpponent
 ##   : destroyedByHost : expires
 const MINE_TUPLE: Array[Dictionary] = [
