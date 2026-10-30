@@ -70,7 +70,9 @@ for (const pass of passes) {
   t0 = Date.now();
   const godotOut = execFileSync(
     GODOT,
-    ['--headless', '--path', BETA, '-s', 'res://tools/trace.gd', '--', ...args],
+    // The frozen alpha-era datasets (beta 0.5 §17.1): live content has moved
+    // past the alpha, so the beta replays the content the alpha still has.
+    ['--headless', '--path', BETA, '-s', 'res://tools/trace.gd', '--', ...args, '--data', 'res://tests/fixtures/legacy_data'],
     { encoding: 'utf8', maxBuffer: 512 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'], shell: true },
   );
   // Godot prints its banner to stdout; keep only record lines.

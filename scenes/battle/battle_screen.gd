@@ -517,7 +517,11 @@ func _debug_seed_overlays() -> void:
 	# Row 2: the armed state in both polarities, so the countdown digit is in
 	# frame beside the marks it replaces.
 	var ax := _stamp_overlay(2, 0, Types.Side.PLAYER, Tile.Special.Type.BOMB, 3, seq)
-	_stamp_overlay(2, ax, Types.Side.ENEMY, Tile.Special.Type.BUFF, 2, seq + 1)
+	ax = _stamp_overlay(2, ax, Types.Side.ENEMY, Tile.Special.Type.BUFF, 2, seq + 1)
+	# Beta 0.5 §7: an armed Mine beside the armed Bomb it must not be mistaken
+	# for, in both ownerships.
+	ax = _stamp_overlay(2, ax, Types.Side.PLAYER, Tile.Special.Type.MINE, 4, seq + 2)
+	_stamp_overlay(2, ax, Types.Side.ENEMY, Tile.Special.Type.MINE, 3, seq + 3)
 
 	_refresh_board()
 

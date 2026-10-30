@@ -35,6 +35,11 @@ func _initialize() -> void:
 	var args := _parse_args()
 
 	var loader := ContentLoader.new()
+	# `--data` reads another dataset directory. The alpha differential passes
+	# the frozen alpha-era copy, because live content has moved past the alpha
+	# (beta 0.5 §17.1) and comparing it would fail for the expected reason.
+	if args["data"] != "":
+		loader.data_dir = args["data"]
 	var result := loader.load_all()
 	if not result["ok"]:
 		for e in loader.issues.errors().slice(0, 10):
@@ -274,6 +279,7 @@ func _parse_args() -> Dictionary:
 		"systems": str(opts.get("sys", "SYS_01,SYS_02,SYS_03")).split(","),
 		"hosts": str(opts.get("host", "HST_01,HST_02,HST_03,HST_04,HST_05")).split(","),
 		"variants": str(opts.get("variant", "default")).split(","),
+		"data": str(opts.get("data", "")),
 	}
 
 

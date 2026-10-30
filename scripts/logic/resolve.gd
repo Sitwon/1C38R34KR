@@ -346,19 +346,25 @@ const MINE_CAUSE_EXPIRE := 5
 ## later board scan — so each removal is classified exactly once. A removal
 ## made by a HOST-sourced carrier's own Effect is `destroy_host` whatever its
 ## mechanism, because the six flags give the HOST only that one category.
-static func mine_removed(state: GameState, t: Tile, removal: Removal, by_side: Types.Side, events: Array) -> Dictionary:
+##
+## `direct` is false for a Sync wave. A Sync that a HOST carrier's Transform
+## set up is still the ACTIVE agent's Sync — its damage, charge, and PASSIVEs
+## are all theirs — so the Mines it slices are theirs too. Found by the content
+## smoke matrix: with the HOST flag read here, a VOLATILE Mine sliced in a
+## WEEDS-made cascade counted as `destroy_host` and silently never fired.
+static func mine_removed(state: GameState, t: Tile, removal: Removal, by_side: Types.Side, events: Array, direct := true) -> Dictionary:
 	if t == null or not t.has_special():
 		return {}
-	return mine_special_removed(state, t.special, removal, by_side, events)
+	return mine_special_removed(state, t.special, removal, by_side, events, direct)
 
 
 ## The same classification for an overlay already detached from its Packet — a
 ## Shake drafts a whole new board, so it can only say which Mines are gone.
-static func mine_special_removed(state: GameState, sp: Tile.Special, removal: Removal, by_side: Types.Side, events: Array) -> Dictionary:
+static func mine_special_removed(state: GameState, sp: Tile.Special, removal: Removal, by_side: Types.Side, events: Array, direct := true) -> Dictionary:
 	if sp == null or sp.type != Tile.Special.Type.MINE:
 		return {}
 	var cause := 0
-	if state.host_actor:
+	if state.host_actor and direct:
 		cause = MINE_CAUSE_HOST
 	else:
 		var own := by_side == sp.owner
@@ -872,7 +878,7 @@ static func resolve_cascades(
 			destroyed.append(p)
 			# Directly matched cells are SLICED; line-clear collateral is
 			# DESTROYED (director ruling Q6, after the Mine param notes).
-			mines.append(mine_removed(state, t, Removal.SLICE if direct.has(p) else Removal.DESTROY, owner, events))
+			mines.append(mine_removed(state, t, Removal.SLICE if direct.has(p) else Removal.DESTROY, owner, events, false))
 			if t.has_special() and t.special.type == Tile.Special.Type.SHIELD:
 				acc["shields_removed"] += 1
 			if t.is_neutral():

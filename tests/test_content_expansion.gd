@@ -442,6 +442,20 @@ func _test_mine_slices(t: TestCase) -> void:
 	Resolve.resolve_cascades(s2, Types.Side.PLAYER, ev2, 1, Types.DamageSource.MATCH, {})
 	t.eq("double-labelled removal triggers once", _all(ev2, Types.EVT.MINE_TRIGGER).size(), 1)
 
+	# A Sync a HOST carrier set up is still the active agent's Sync: its Mine
+	# slices are theirs, never `destroy_host` (found by the smoke matrix).
+	var s4 := _state("SYS_04", "HST_05")
+	_lattice(s4)
+	_paint(s4, [Vector2i(0, 7), Vector2i(1, 7), Vector2i(2, 7)], RED, -1)
+	_mine(s4, Vector2i(1, 7), Types.Side.ENEMY, [1, 1, 0, 0, 0, 0], 4)
+	s4.host_actor = true
+	var ev4: Array = []
+	Resolve.resolve_cascades(s4, Types.Side.PLAYER, ev4, 1, Types.DamageSource.MATCH, {})
+	s4.host_actor = false
+	var trig4 := _first(ev4, Types.EVT.MINE_TRIGGER)
+	t.eq("a Sync during a HOST carrier is the agent's slice", trig4.get("cause", ""), "slice_enemy")
+	t.eq("…so VOLATILE fires", _damage(ev4, Types.DamageSource.MINE).size(), 1)
+
 	# A lethal slice ends the battle before the Mine it sets off can fire.
 	var s3 := _state("SYS_04", "HST_01")
 	_lattice(s3)
