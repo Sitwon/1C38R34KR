@@ -16,6 +16,7 @@ extends RefCounted
 ## 25, 26, 27, 28, 29, 30, 31.
 
 const FIXTURE := "res://tests/fixtures/route.json"
+const LegacyProfile := preload("res://tests/legacy_profile.gd")
 
 
 func run(t: TestCase) -> void:
@@ -28,10 +29,14 @@ func run(t: TestCase) -> void:
 	Content.set_active(result["content"])
 	Passives.clear_cache()
 
+	# The alpha fixtures replay against the frozen alpha-era pools (beta 0.5
+	# §17.1); the behavioural rules below run against the live, larger ones.
 	var fixture := _load_fixture(t)
 	if not fixture.is_empty():
+		Content.set_active(LegacyProfile.restrict(result["content"]))
 		_test_fixture_parity(t, fixture)
 		_test_quick_match_parity(t, fixture)
+		Content.set_active(result["content"])
 
 	_test_initial_route(t)
 	_test_escalation_routes(t)
@@ -383,7 +388,8 @@ func _test_full_lifecycle(t: TestCase) -> void:
 	t.check("opponent is the Boss, not a System", r.opponent_is_boss())
 	t.eq("final HOST committed", r.host_id, final_host)
 	t.check("final UPGRADE acquired", r.upgrade_ids.has(final_upgrade))
-	t.eq("all four UPGRADEs acquired", r.upgrade_ids.size(), Content.all_upgrades().size())
+	# One UPGRADE per path choice, one choice per Run step. Equal to the whole pool only while the pool held exactly four (beta 0.4).
+	t.eq("all four UPGRADEs acquired", r.upgrade_ids.size(), Run.RUN_LENGTH)
 
 	# §22.28 — confirming the final Build stops at PENDING_BOSS_BATTLE rather
 	# than fabricating a Battle 4. The Run is parked, NOT complete.

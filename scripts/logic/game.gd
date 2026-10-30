@@ -80,6 +80,9 @@ func _run_start_of_turn_passives(active: Types.Side, events: Array) -> void:
 	for inst in Passives.start_of_turn(state.identity, active):
 		if state.has_winner():
 			break
+		if inst.passive["effect_type"] == PassiveEffects.SELF_DAMAGE:
+			_self_damage(inst, active, events)
+			continue
 		if inst.passive["effect_type"] != PassiveEffects.CARRIER:
 			continue
 		var fn_id := str(inst.passive["function_id"])
@@ -97,6 +100,7 @@ func _run_start_of_turn_passives(active: Types.Side, events: Array) -> void:
 		#
 		# The actor's name is the payload FUNCTION's name — the PASSIVE's
 		# display text is presentation and never gameplay authority.
+		state.host_actor = inst.source_kind == Types.PassiveSourceKind.HST
 		_cast_actor(active, {
 			"kind": Types.OwnerKind.PASSIVE,
 			"id": inst.passive["id"],
@@ -104,6 +108,32 @@ func _run_start_of_turn_passives(active: Types.Side, events: Array) -> void:
 			"fn": fn,
 			"cause": inst.cause(),
 		}, events)
+		state.host_actor = false
+
+
+## PSV_SELF_DAMAGE (beta 0.5 §8.4): PASSIVE damage at the start of a turn.
+##
+## A HOST instance hits whichever combatant's turn is beginning, so ACID hurts
+## each side on its own turn. An agent-owned OWNER instance hits its owner; an
+## ENEMY one hits the owner's opponent. (No current content is agent-owned.)
+##
+## Environmental damage: Shield applies through the ordinary funnel, but it is
+## not ability damage, so no rate or Function bonus touches it, and it grants
+## no charge. The battle-end check is the funnel's own.
+func _self_damage(inst, active: Types.Side, events: Array) -> void:
+	var target := active
+	if inst.owner != Passives.NO_OWNER and inst.passive["agent_scope"] == "ENEMY":
+		target = Types.opponent_of(inst.owner)
+	var amount := Passives.magnitude_of(inst)
+	events.append({
+		"t": Types.EVT.PASSIVE, "side": target, "cause": inst.cause(),
+		"effect": inst.passive["effect_type"], "self_damage": amount,
+	})
+	Resolve.deal_damage(state, target, amount, {
+		"source": Types.DamageSource.PASSIVE,
+		"label": "%s damage" % inst.source_id,
+		"cause": inst.cause(),
+	}, events)
 
 
 func _find_by_seq(seq: int) -> Vector2i:
@@ -172,6 +202,10 @@ func _deliver_countdown(p: Vector2i, events: Array) -> void:
 			"t": Types.EVT.MSG,
 			"text": "%s buff came online" % ("Hacker" if sp.owner == Types.Side.PLAYER else "System"),
 		})
+		return
+
+	if delivers == Effects.MINE:
+		Resolve.expire_mine(state, p, events)
 		return
 
 	# Bombs already carry their own detonation telemetry.
@@ -432,6 +466,16 @@ func _cast_op(owner: Types.Side, actor: Dictionary, op: Dictionary, events: Arra
 				"delivers": Effects.BUFF, "fn_id": op["fn_id"], "actor": actor,
 			}, events)
 			events.append(_op_event(owner, actor, op, placed > 0))
+		Effects.MINE:
+			var placed := _place_specials({
+				"type": Tile.Special.Type.MINE, "owner": owner,
+				"count": params.get("quantity", 1),
+				"countdown": params.get("countdown", 0),
+				"damage": params.get("damage", 0),
+				"triggers": params["mine"],
+				"delivers": Effects.MINE, "fn_id": op["fn_id"], "actor": actor,
+			}, events)
+			events.append(_op_event(owner, actor, op, placed > 0))
 		Effects.SHIELD:
 			var placed := _place_specials({
 				"type": Tile.Special.Type.SHIELD, "owner": owner,
@@ -618,11 +662,24 @@ func _cast_shake(owner: Types.Side, actor: Dictionary, op: Dictionary, params: D
 	# mutating it in place — it drafts a candidate arrangement and commits only
 	# on success, which is what makes the fizzle leave the Datastream untouched.
 	# Dropping the write-back silently discards a successful Shake.
+	var mines_before := _mine_tiles()
 	var carrier := {"board": state.board, "rng": state.rng, "next_id": state.next_id}
 	var ok := BoardOps.shake(carrier, sp, owner)
 	state.board = carrier["board"]
 	state.next_id = carrier["next_id"]
 	events.append({"t": Types.EVT.SHAKE, "side": owner, "resolved": ok})
+	if ok:
+		# A Mine the Shake stripped is DESTROYED by the activating side. The
+		# Shake drafts a whole new board, so removal is read off the result: a
+		# Mine still carried by some Packet survived it.
+		var after := _mine_tiles()
+		var stripped: Array = []
+		for seq in mines_before:
+			if not after.has(seq):
+				stripped.append(Resolve.mine_special_removed(state, mines_before[seq], Resolve.Removal.DESTROY, owner, events))
+		Resolve.fire_mines(state, stripped, events)
+		if state.has_winner():
+			return
 	events.append(_op_event(owner, actor, op, ok))
 
 	if not ok:
@@ -641,6 +698,17 @@ func _cast_shake(owner: Types.Side, actor: Dictionary, op: Dictionary, params: D
 		Resolve.resolve_cascades(state, owner, events, _shake_budget(sp["cascades"]), Types.DamageSource.MATCH, {}, "", {}, self)
 	# matches PREVENTED: the completed arrangement already satisfies the stable
 	# post-generation invariants, so no Sync wave begins.
+
+
+## Every live Mine overlay by placement seq, so a Shake can
+## tell afterwards which Mines it stripped.
+func _mine_tiles() -> Dictionary:
+	var out := {}
+	for row in state.board:
+		for t in row:
+			if t != null and t.has_special() and t.special.type == Tile.Special.Type.MINE:
+				out[t.special.seq] = t.special
+	return out
 
 
 ## Drain targets PROGRAMS ONLY.
@@ -746,6 +814,25 @@ func _place_specials(opts: Dictionary, events: Array) -> int:
 	var countdown: int = opts.get("countdown", -1)
 	var placed := 0
 
+	# PSV_COUNTDOWN_ADJUST (beta 0.5 §8.1): a COUNTDOWN special's authored
+	# countdown is adjusted once, here, by the sum of every applicable instance,
+	# floored at 0. A Mine is always a countdown special; a Bomb or Buff only
+	# when it authors a positive countdown — an immediate one has no fuse.
+	var is_countdown_special: bool = opts["type"] == Tile.Special.Type.MINE or countdown > 0
+	if is_countdown_special:
+		var base := countdown
+		var adjust := 0
+		for inst in Passives.countdown_adjust(state.identity, opts["owner"]):
+			var a := Passives.magnitude_of(inst)
+			adjust += a
+			events.append({
+				"t": Types.EVT.PASSIVE, "side": opts["owner"], "cause": inst.cause(),
+				"effect": inst.passive["effect_type"], "countdown": a,
+				"base_countdown": base,
+			})
+		countdown = maxi(0, base + adjust)
+	var immediate: Array[int] = []
+
 	for i in int(opts["count"]):
 		if candidates.is_empty():
 			break
@@ -760,8 +847,13 @@ func _place_specials(opts: Dictionary, events: Array) -> int:
 		sp.countdown = countdown
 		# An overlay is ARMED iff it carries a countdown, and then it must say
 		# what it delivers. Bombs default to their own detonation.
-		if countdown > 0:
+		if countdown > 0 or (is_countdown_special and countdown == 0):
 			sp.delivers = str(opts.get("delivers", Effects.BOMB))
+		if opts["type"] == Tile.Special.Type.MINE:
+			sp.damage = int(opts.get("damage", 0))
+			var flags: Dictionary = opts["triggers"]
+			for name in Effects.MINE_FLAG_NAMES:
+				sp.triggers.append(int(flags[name]))
 		sp.area_pattern = str(opts.get("area_pattern", ""))
 		sp.magnitude = int(opts.get("magnitude", -1))
 		sp.program_id = str(actor["id"])
@@ -774,6 +866,8 @@ func _place_specials(opts: Dictionary, events: Array) -> int:
 
 		events.append({"t": Types.EVT.SET_TILE, "p": p, "view": Resolve._tile_view(t)})
 		placed += 1
+		if is_countdown_special and countdown == 0:
+			immediate.append(sp.seq)
 
 	# Bombs and shields are tracked per activation; buffs are not in that set.
 	if opts["type"] != Tile.Special.Type.BUFF:
@@ -786,7 +880,7 @@ func _place_specials(opts: Dictionary, events: Array) -> int:
 		})
 
 	var who := "Hacker" if opts["owner"] == Types.Side.PLAYER else "System"
-	var noun: String = ["bomb", "buff", "shield", "override"][opts["type"]]
+	var noun: String = Resolve.SPECIAL_TYPE_NAMES[opts["type"]]
 	# An armed overlay is not yet doing anything, so the player-facing line says
 	# so rather than claiming a live Buff was placed.
 	var verb := "armed" if (countdown > 0 and opts["type"] == Tile.Special.Type.BUFF) else "placed"
@@ -795,6 +889,16 @@ func _place_specials(opts: Dictionary, events: Array) -> int:
 	else:
 		var what := "a %s" % noun if placed == 1 else "%d %ss" % [placed, noun]
 		events.append({"t": Types.EVT.MSG, "text": "%s %s %s" % [who, verb, what]})
+
+	# A countdown adjusted to 0 resolves its zero behaviour NOW rather than
+	# parking on the board (§8.1), in placement order, each fully before the
+	# next. An earlier one may have removed a later one, which is then skipped.
+	for seq in immediate:
+		if state.has_winner():
+			break
+		var at := _find_by_seq(seq)
+		if at.x >= 0:
+			_deliver_countdown(at, events)
 	return placed
 
 
@@ -904,7 +1008,7 @@ func _activation_eligibility(prog: Dictionary) -> Dictionary:
 					"axis_target": params["axisTarget"], "axis_result": params["axisResult"],
 				}) == 0:
 					return {"eligible": false, "reason": "no valid Packet to transform"}
-			Effects.BUFF, Effects.SHIELD:
+			Effects.BUFF, Effects.SHIELD, Effects.MINE:
 				if _placement_candidate_count() == 0:
 					return {"eligible": false, "reason": "no valid Packet for placement"}
 			Effects.BOMB:
@@ -982,7 +1086,22 @@ func _run_system_function_phase(events: Array) -> void:
 		u.charge -= int(prog["cost"])
 		_cast_actor(Types.Side.ENEMY, {
 			"kind": Types.OwnerKind.PROGRAM, "id": prog["id"], "name": prog["name"], "fn": prog["fn"],
-		}, events)
+		}, events, _system_target(prog["fn"]))
+
+
+## The System's target for a manually targeted Function (director ruling Q3,
+## beta 0.5): where no explicit targeting algorithm exists, pick at random,
+## from the deterministic battle RNG, among the targets that would be valid for
+## the Hacker. Drain keeps its own tiered algorithm, so a UNIT target is left
+## to it. RNG is consumed only for a PACKET-targeted Function, so content with
+## none draws exactly as before.
+func _system_target(fn: Dictionary):
+	if _function_target_kind(fn) != Types.TargetKind.PACKET:
+		return null
+	var pool := _occupied_cells({})
+	if pool.is_empty():
+		return null
+	return {"kind": Types.TargetKind.PACKET, "p": pool[state.rng.int_below(pool.size())]}
 
 
 func run_enemy_phase() -> Array:

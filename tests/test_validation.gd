@@ -26,7 +26,11 @@ func run(t: TestCase) -> void:
 ## The whole pipeline on real content, as startup runs it.
 func _test_full_load(t: TestCase) -> void:
 	t.group("validation / full load of authored content")
+	# The frozen alpha-era datasets (beta 0.5 §17.1): this pins that the beta 0.5
+	# code still loads them to the SAME fingerprint and warning set. The live
+	# content's own pin is in test_content_expansion.gd.
 	var loader := ContentLoader.new()
+	loader.data_dir = "res://tests/fixtures/legacy_data"
 	var result := loader.load_all()
 
 	t.check("authored content loads", result["ok"])

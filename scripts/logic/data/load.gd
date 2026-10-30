@@ -54,8 +54,14 @@ var style_rows := {}   ## STYLE_ID -> resolved row
 var font_rows := {}    ## "ROLE/WEIGHT" -> res:// path
 
 
+## Where the datasets are read from. Live content by default; the tests point
+## it at the frozen alpha-era copy to keep the alpha differential meaningful
+## once live content has moved on (beta 0.5 §17.1).
+var data_dir := DATA_DIR
+
+
 func _path(role: String) -> String:
-	return "%s/%s" % [DATA_DIR, FILES[role]]
+	return "%s/%s" % [data_dir, FILES[role]]
 
 
 # ---------------------------------------------------------------------------
@@ -274,6 +280,18 @@ func read_passives() -> void:
 		var tuple := _check_passive_params(table.get_cell(i, "params"), effect_raw, contract, ctx)
 		var display_ok := _check_passive_display(_passive_template(id), contract, ctx)
 
+		# The drop rate weights the SHARED board, so "make the enemy's drops
+		# likelier" has no coherent meaning for an agent-owned source (§8.3,
+		# §14). A HOST ignores scope anyway, so OWNER is the one valid authoring.
+		if effect_raw == PassiveEffects.PACKET_DROP_RATE and table.get_cell(i, "agent_scope").strip_edges() == "ENEMY":
+			var c := ctx.duplicate()
+			c["field"] = "agent_scope"
+			c["value"] = "ENEMY"
+			c["expected"] = "OWNER"
+			c["reason"] = "PSV_PACKET_DROP_RATE modifies the shared board and has no ENEMY meaning"
+			issues.error(c)
+			scope_ok = false
+
 		if not (activation_ok and scope_ok and payload["ok"] and tuple["ok"] and display_ok):
 			continue
 
@@ -283,7 +301,7 @@ func read_passives() -> void:
 		var shown: Array[String] = []
 		for k in contract["params"].size():
 			var kind: int = contract["params"][k]
-			shown.append(Vocab.title_case(tokens[k]) if kind == PassiveEffects.ParamKind.COLOR else tokens[k])
+			shown.append(_shown_passive_token(tokens[k], kind))
 
 		var template := _passive_template(id)
 
@@ -295,6 +313,7 @@ func read_passives() -> void:
 			"activation": table.get_cell(i, "activation").strip_edges(),
 			"agent_scope": table.get_cell(i, "agent_scope").strip_edges(),
 			"color": tuple["color"],
+			"shape": tuple["shape"],
 			"all_scope": tuple["all_scope"],
 			"magnitude": tuple["magnitude"],
 			"function_id": payload["function_id"],
@@ -558,7 +577,7 @@ func _check_passive_payload(raw: String, effect_raw: String, contract: Dictionar
 func _check_passive_params(raw: String, effect_raw: String, contract: Dictionary, ctx: Dictionary) -> Dictionary:
 	var params_raw := raw.strip_edges()
 	var kinds: Array = contract["params"]
-	var result := {"ok": true, "tokens": [] as Array, "color": null, "all_scope": false, "magnitude": null}
+	var result := {"ok": true, "tokens": [] as Array, "color": null, "shape": null, "all_scope": false, "magnitude": null}
 
 	if kinds.is_empty():
 		if params_raw != "":
@@ -577,7 +596,7 @@ func _check_passive_params(raw: String, effect_raw: String, contract: Dictionary
 	if params_raw == "" or tokens.size() != kinds.size():
 		var expected := PackedStringArray()
 		for k in kinds:
-			expected.append(["color", "scope", "positiveInt"][k])
+			expected.append(PassiveEffects.PARAM_KIND_NAMES[k])
 		var c := ctx.duplicate()
 		c["field"] = "params"
 		c["value"] = params_raw
@@ -622,18 +641,80 @@ func _check_passive_params(raw: String, effect_raw: String, contract: Dictionary
 					result["ok"] = false
 					continue
 				result["all_scope"] = true
-			_:
-				var p := Vocab.parse_int_field(tok)
-				if not p["present"] or not p["valid"] or int(p["value"]) < 1 or int(p["value"]) > 999999:
+			PassiveEffects.ParamKind.CHARACTERISTIC, PassiveEffects.ParamKind.SELECTOR:
+				# A colour or a shape token — never both — plus ALL for a
+				# selector. Which axis it names is stored, not re-derived.
+				if Vocab.COLOR_TOKENS.has(tok):
+					result["color"] = Vocab.COLOR_TOKENS[tok]
+				elif Vocab.SHAPE_TOKENS.has(tok):
+					result["shape"] = Vocab.SHAPE_TOKENS[tok]
+				elif kind == PassiveEffects.ParamKind.SELECTOR and tok == PassiveEffects.ALL_SCOPE_TOKEN:
+					result["all_scope"] = true
+				else:
+					var allowed := PackedStringArray(Vocab.COLOR_TOKENS.keys())
+					allowed.append_array(PackedStringArray(Vocab.SHAPE_TOKENS.keys()))
+					if kind == PassiveEffects.ParamKind.SELECTOR:
+						allowed.append(PassiveEffects.ALL_SCOPE_TOKEN)
 					c["value"] = tok
-					c["expected"] = "positive integer"
+					c["expected"] = "|".join(allowed)
+					c["reason"] = "unknown color/shape value in PASSIVE params"
+					issues.error(c)
+					result["ok"] = false
+					continue
+			_:
+				var parsed := _passive_int(tok, kind)
+				if not parsed["ok"]:
+					c["value"] = tok
+					c["expected"] = PassiveEffects.PARAM_KIND_NAMES[kind]
 					c["reason"] = "invalid magnitude in PASSIVE params"
 					issues.error(c)
 					result["ok"] = false
 					continue
-				result["magnitude"] = int(p["value"])
+				result["magnitude"] = parsed["value"]
 
 	return result
+
+
+## The integer param kinds. Signed kinds take an optional leading `+`/`-`;
+## the shared integer syntax rejects signs, so the sign is peeled off here.
+func _passive_int(tok: String, kind: int) -> Dictionary:
+	var signed := kind == PassiveEffects.ParamKind.SIGNED_INT or kind == PassiveEffects.ParamKind.SIGNED_PERCENT
+	var sign := 1
+	var body := tok
+	if signed and (body.begins_with("-") or body.begins_with("+")):
+		sign = -1 if body.begins_with("-") else 1
+		body = body.substr(1)
+	var p := Vocab.parse_int_field(body)
+	if not p["present"] or not p["valid"] or int(p["value"]) > 999999:
+		return {"ok": false}
+	var v := sign * int(p["value"])
+	var lo := 1
+	if signed:
+		lo = -999999
+	elif kind == PassiveEffects.ParamKind.NON_NEG_INT:
+		lo = 0
+	if v < lo:
+		return {"ok": false}
+	return {"ok": true, "value": v}
+
+
+## A PASSIVE param token as the player reads it: colour and shape tokens
+## title-cased (RED becomes Red), signed values with an explicit sign, and
+## percentages with their % — so a template never needs a literal `%`, which the
+## `%N` placeholder grammar would reject.
+static func _shown_passive_token(tok: String, kind: int) -> String:
+	match kind:
+		PassiveEffects.ParamKind.COLOR, PassiveEffects.ParamKind.CHARACTERISTIC:
+			return Vocab.title_case(tok)
+		PassiveEffects.ParamKind.SELECTOR:
+			return tok if tok == PassiveEffects.ALL_SCOPE_TOKEN else Vocab.title_case(tok)
+		PassiveEffects.ParamKind.SIGNED_INT, PassiveEffects.ParamKind.SIGNED_PERCENT:
+			var v := int(tok.trim_prefix("+"))
+			var s := ("+%d" % v) if v > 0 else str(v)
+			return s + ("%" if kind == PassiveEffects.ParamKind.SIGNED_PERCENT else "")
+		PassiveEffects.ParamKind.PERCENT:
+			return "%s%%" % tok
+	return tok
 
 
 ## Presentation only, never gameplay authority. `%N` refers to the zero-based
@@ -1191,21 +1272,21 @@ func parse_payloads() -> void:
 			issues.error(c)
 			continue
 
-		if effect_tokens.size() > 1:
-			var c := ctx.duplicate()
-			c["value"] = raw
-			c["reason"] = "a leaf payload must be exactly one EFFECT_* ID"
-			issues.error(c)
-			continue
-
-		if effect_tokens.size() == 1:
-			if not Effects.is_effect_id(effect_tokens[0]):
+		# A leaf may list several Effects, executed sequentially in authored
+		# order (beta 0.5 §5.1, STOMP). They share the row's columns; which
+		# Effect owns which column is settled by `_merged_contract`.
+		if not effect_tokens.is_empty():
+			var unknown := ""
+			for e in effect_tokens:
+				if unknown == "" and not Effects.is_effect_id(e):
+					unknown = e
+			if unknown != "":
 				var c := ctx.duplicate()
-				c["value"] = effect_tokens[0]
+				c["value"] = unknown
 				c["reason"] = "unknown Effect ID"
 				issues.error(c)
 				continue
-			payloads[f["id"]] = {"kind": "leaf", "effect_id": effect_tokens[0], "children": []}
+			payloads[f["id"]] = {"kind": "leaf", "effect_id": effect_tokens[0], "effect_ids": effect_tokens, "children": []}
 		else:
 			if fn_tokens.has(f["id"]):
 				var c := ctx.duplicate()
@@ -1287,16 +1368,61 @@ func resolve_effect_params() -> void:
 			_warn_unused_on_composite(f, ctx)
 			continue
 
-		var contract := Effects.contract(str(p["effect_id"]))
+		var contract := _merged_contract(p["effect_ids"], ctx)
+		if contract.is_empty():
+			continue
+		var label := ":".join(PackedStringArray(p["effect_ids"]))
 		var out := {}
-		var ok := _resolve_discrete_params(f, contract, str(p["effect_id"]), ctx, out)
-		if not _resolve_tuple(f, contract, str(p["effect_id"]), ctx, out):
+		var ok := _resolve_discrete_params(f, contract, label, ctx, out)
+		if not _resolve_tuple(f, contract, str(contract["tuple_effect"]), ctx, out):
 			ok = false
-		if not _resolve_axes(f, contract, str(p["effect_id"]), ctx, out):
+		if not _resolve_axes(f, contract, label, ctx, out):
 			ok = false
 
 		if ok:
 			fn_params[id] = out
+
+
+## One Effect's contract, or several sequential Effects' contracts merged over
+## the single row they share.
+##
+## Each column belongs to at most ONE Effect in the list. A column two Effects
+## both claim would give one authored value two meanings, so it is an error —
+## author a composite of two leaf Functions instead. Likewise at most one
+## Effect may own the `params` tuple and the axis columns.
+func _merged_contract(effect_ids: Array, ctx: Dictionary) -> Dictionary:
+	if effect_ids.size() == 1:
+		var only := Effects.contract(str(effect_ids[0])).duplicate()
+		only["tuple_effect"] = str(effect_ids[0])
+		return only
+
+	var merged := {"required": [], "optional": [], "allow_zero": [], "tuple": [], "axes": [], "tuple_effect": ""}
+	var owner := {}
+	var ok := true
+	for e in effect_ids:
+		var c := Effects.contract(str(e))
+		var claims: Array = []
+		claims.append_array(c["required"])
+		claims.append_array(c["optional"])
+		if not (c["tuple"] as Array).is_empty():
+			claims.append("params")
+		claims.append_array(c["axes"])
+		for col in claims:
+			if owner.has(col):
+				var x := _field_ctx(ctx, "payload")
+				x["value"] = "%s and %s both use %s" % [owner[col], e, col]
+				x["reason"] = "two Effects in one payload claim the same column — use a composite of leaf Functions"
+				issues.error(x)
+				ok = false
+			owner[col] = e
+		(merged["required"] as Array).append_array(c["required"])
+		(merged["optional"] as Array).append_array(c["optional"])
+		(merged["axes"] as Array).append_array(c["axes"])
+		(merged["allow_zero"] as Array).append_array(c.get("allow_zero", []))
+		if not (c["tuple"] as Array).is_empty():
+			merged["tuple"] = c["tuple"]
+			merged["tuple_effect"] = str(e)
+	return merged if ok else {}
 
 
 ## The Transform axis columns.
@@ -1514,7 +1640,7 @@ func _resolve_discrete_params(f: Dictionary, contract: Dictionary, effect_id: St
 			# uses 99 to mean "every eligible Packet". 99 is an ORDINARY number
 			# here, never a sentinel, and fewer targets simply means fewer
 			# deployments.
-			var lo := 1
+			var lo := 0 if (contract.get("allow_zero", []) as Array).has(col) else 1
 			var hi := 999999
 			if col == "quantity":
 				hi = 999
@@ -1607,6 +1733,19 @@ func _resolve_tuple(f: Dictionary, contract: Dictionary, effect_id: String, ctx:
 			}
 		Effects.TRANSFORM:
 			out["transform"] = {"targeting": vals[0], "specialPacketTreatment": vals[1]}
+		Effects.MINE:
+			var flags := {}
+			var any := false
+			for k in Effects.MINE_FLAG_NAMES.size():
+				flags[Effects.MINE_FLAG_NAMES[k]] = vals[k]
+				any = any or vals[k] == 1
+			out["mine"] = flags
+			# Legal, but the Mine can never do anything (dataset notes).
+			if not any:
+				var c := _field_ctx(ctx, "params")
+				c["value"] = raw
+				c["reason"] = "EFFECT_MINE has no enabled trigger — it can never deal damage"
+				issues.warn(c)
 		Effects.SHAKE:
 			out["shake"] = {
 				"boardComposition": vals[0], "specialGems": vals[1],
@@ -1638,17 +1777,27 @@ var plans := {}
 ## no longer a property of the Effect alone: Bomb, LineSlice, and Transform each
 ## select it per row through their typed tuple. The same Effect is targeted on
 ## one row and random on the next.
+## Which tuple key carries each self-targeting Effect's `targeting` field.
+const TARGETING_TUPLE_KEY := {
+	Effects.BOMB: "bomb",
+	Effects.LINESLICE: "line",
+	Effects.TRANSFORM: "transform",
+}
+
+
 static func resolve_target(effect_id: String, params: Dictionary) -> Types.TargetKind:
 	var contract := Effects.contract(effect_id)
 	if contract["targeted"]:
 		var kind: int = contract["target_kind"]
 		return kind if kind != Types.TargetKind.NONE else Types.TargetKind.UNIT
 
+	# Only THIS Effect's own tuple. A multi-Effect leaf shares one params
+	# dictionary, so scanning every tuple key would let STOMP's ATTACK read its
+	# sibling Bomb's targeting.
 	var targeting = null
-	for key in ["bomb", "line", "transform"]:
-		if params.has(key):
-			targeting = params[key]["targeting"]
-			break
+	var key: String = TARGETING_TUPLE_KEY.get(effect_id, "")
+	if key != "" and params.has(key):
+		targeting = params[key]["targeting"]
 
 	if targeting == Content.TARGETING_TARGETED:
 		var kind: int = contract["target_kind"]
@@ -1664,14 +1813,19 @@ func _build_plan(fn_id: String) -> Array:
 	if payload["kind"] == "leaf":
 		if not fn_params.has(fn_id):
 			return []
-		var effect_id: String = payload["effect_id"]
 		var params: Dictionary = fn_params[fn_id]
-		return [{
-			"fn_id": fn_id,
-			"effect_id": effect_id,
-			"params": params,
-			"target": resolve_target(effect_id, params),
-		}]
+		# One op per authored Effect, in payload order, all under this one
+		# Function identity — so the activation pays once and each Effect still
+		# emits its own events.
+		var ops: Array = []
+		for effect_id in (payload["effect_ids"] as Array):
+			ops.append({
+				"fn_id": fn_id,
+				"effect_id": effect_id,
+				"params": params,
+				"target": resolve_target(effect_id, params),
+			})
+		return ops
 
 	# Children are validated leaves, so this recursion is exactly one level
 	# deep and cannot loop.
@@ -1840,6 +1994,10 @@ func _fingerprint_functions(used_areas: Dictionary) -> Array:
 			o["at"] = _axis_target(params)
 			o["ar"] = _axis_result(params)
 			o["tgt"] = _target_name(op["target"])
+			# Added only when present: the alpha has no Mine, and an always-null
+			# key would change the hash of content that contains none.
+			if params.has("mine"):
+				o["mine"] = _tuple_array(params, "mine", Effects.MINE_FLAG_NAMES)
 			plan_out.append(o)
 
 		e["plan"] = plan_out
@@ -2049,6 +2207,13 @@ func check_unreferenced_functions() -> void:
 	# real references all the same and must not warn as dead rows.
 	for id in Content.BOSS_MECHANIC_FUNCTION_IDS:
 		referenced[id] = true
+	# A composite's children are referenced exactly when the composite is. The
+	# message always claimed this; until FORAGE (beta 0.5) the only composite,
+	# SHOWCASE, was itself unreferenced, so the omission never showed.
+	for id in referenced.keys():
+		if payloads.has(id) and payloads[id]["kind"] == "composite":
+			for child in (payloads[id]["children"] as Array):
+				referenced[child] = true
 
 	for f in function_rows:
 		if not referenced.has(f["id"]):

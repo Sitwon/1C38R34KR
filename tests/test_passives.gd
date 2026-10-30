@@ -8,6 +8,10 @@ extends RefCounted
 ## several effects and pass every other test in the suite.
 
 
+## Pinned in `test_content_expansion.gd`, which owns the live-content oracle.
+const LIVE_FINGERPRINT := preload("res://tests/test_content_expansion.gd").LIVE_FINGERPRINT
+
+
 func run(t: TestCase) -> void:
 	var loader := ContentLoader.new()
 	var result := loader.load_all()
@@ -45,7 +49,7 @@ func _test_resolved_content(t: TestCase) -> void:
 	t.eq("System Program is enemy-side", sys_prog["side"], Types.Side.ENEMY)
 
 	t.eq("player Program count", Content.programs_for(Types.Side.PLAYER).size(), 6)
-	t.eq("enemy Program count", Content.programs_for(Types.Side.ENEMY).size(), 8)
+	t.eq("enemy Program count", Content.programs_for(Types.Side.ENEMY).size(), 26)
 
 	var hacker := Content.hacker(Content.DEFAULT_HACKER_ID)
 	t.eq("Hacker resolves", str(hacker["id"]), "HAK_01")
@@ -54,7 +58,7 @@ func _test_resolved_content(t: TestCase) -> void:
 	var deck := Content.deck(Content.DEFAULT_DECK_ID)
 	t.check("Deck carries its resolved Function", (deck["fn"] as Dictionary).has("plan"))
 
-	t.eq("fingerprint travels with the content", Content.fingerprint(), "83434613-96w")
+	t.eq("fingerprint travels with the content", Content.fingerprint(), LIVE_FINGERPRINT)
 
 
 ## THRESHOLD contributes nothing, so a battle on it has only the Hacker's own

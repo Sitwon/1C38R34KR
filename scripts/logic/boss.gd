@@ -141,6 +141,8 @@ static func _place_one_special(
 	var cell: Vector2i = shuffled[0]
 
 	var t: Tile = state.board[cell.y][cell.x]
+	# Overwriting a Mine destroys it, by the Boss's side (beta 0.5 §6.6).
+	var mine := Resolve.mine_removed(state, t, Resolve.Removal.DESTROY, Types.Side.ENEMY, events)
 	var sp := Tile.Special.new()
 	sp.type = type
 	sp.owner = Types.Side.ENEMY
@@ -148,6 +150,7 @@ static func _place_one_special(
 	state.next_seq += 1
 	t.special = sp
 	events.append({"t": Types.EVT.SET_TILE, "p": cell, "view": Resolve._tile_view(t)})
+	Resolve.fire_mines(state, [mine], events)
 	return cell
 
 
@@ -275,6 +278,7 @@ static func override_targets(state: GameState) -> Array[Vector2i]:
 ## record.
 static func place_overrides(state: GameState, cells: Array, events: Array) -> int:
 	var overwrote := 0
+	var mines: Array = []
 	for p in cells:
 		var t: Tile = state.board[p.y][p.x]
 		if t == null:
@@ -284,6 +288,7 @@ static func place_overrides(state: GameState, cells: Array, events: Array) -> in
 		# its effect and its countdown; the underlying Packet is untouched.
 		if t.has_special():
 			overwrote += 1
+			mines.append(Resolve.mine_removed(state, t, Resolve.Removal.DESTROY, Types.Side.ENEMY, events))
 		var sp := Tile.Special.new()
 		sp.type = Tile.Special.Type.OVERRIDE
 		sp.owner = Types.Side.ENEMY
@@ -291,6 +296,7 @@ static func place_overrides(state: GameState, cells: Array, events: Array) -> in
 		state.next_seq += 1
 		t.special = sp
 		events.append({"t": Types.EVT.SET_TILE, "p": p, "view": Resolve._tile_view(t)})
+	Resolve.fire_mines(state, mines, events)
 	return overwrote
 
 
@@ -438,8 +444,13 @@ static func nehbocyet_start(game: Game, events: Array) -> void:
 
 	if not cleared.is_empty():
 		events.append({"t": Types.EVT.DESTROY, "cells": cleared})
+		var mines: Array = []
 		for p in cleared:
+			mines.append(Resolve.mine_removed(state, state.board[p.y][p.x], Resolve.Removal.DESTROY, Types.Side.ENEMY, events))
 			state.board[p.y][p.x] = null
+		Resolve.fire_mines(state, mines, events)
+		if state.has_winner():
+			return
 		# Ordinary board pipeline. Any Logic Bomb that lands in the bottom row
 		# as a result detonates through the post-settle hook, not from here.
 		Resolve.settle_after_effect(state, Types.Side.ENEMY, Types.DamageSource.MATCH, "", events, game)

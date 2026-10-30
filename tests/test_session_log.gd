@@ -129,7 +129,8 @@ func _test_run_walk(t: TestCase) -> void:
 	t.eq("phase", str(stop["phase"]), "PENDING_BOSS_BATTLE")
 	t.eq("Boss", str(stop["boss_id"]), boss_id)
 	t.check("HOST", str(stop["host_id"]) != "")
-	t.eq("every UPGRADE", (stop["upgrades"] as Array).size(), Content.all_upgrades().size())
+	# One UPGRADE per path choice, one choice per Run step. Equal to the whole pool only while the pool held exactly four (beta 0.4).
+	t.eq("every UPGRADE", (stop["upgrades"] as Array).size(), Run.RUN_LENGTH)
 	t.eq("Boss ICE", int(stop["ice"]), int(Content.boss(boss_id)["base_ice"]))
 	t.check("build", (stop["build"] as Array).size() == Content.ACTIVE_BUILD_SIZE)
 

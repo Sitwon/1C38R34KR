@@ -128,6 +128,10 @@ const OVERLAY_TINT: Array[Color] = [
 	# D-037 suspended the ring, so a shared tint hides a shared mechanic.
 	Color("4affc8"),  ## CAPACITOR — stored charge, cool green
 	Color("ff7a1f"),  ## LOGIC_BOMB — hazard orange, distinct from BOMB's red
+	# Beta 0.5. The one tint actually DRAWN: a Mine's spiked frame (packet.gd).
+	# Near-white so it reads against every Packet colour and both badge fills,
+	# and belongs to no Packet colour itself.
+	Color("f4f0e6"),  ## MINE
 ]
 
 ## What a Packet is painted when ECHOFALL hides the COLOUR axis (beta 0.4 §8.2).

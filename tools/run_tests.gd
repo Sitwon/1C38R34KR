@@ -45,6 +45,7 @@ const SUITES := [
 	"res://tests/test_metrics.gd",
 	# Phase G — Run/session observability, through the same store.
 	"res://tests/test_session_log.gd",
+	"res://tests/test_content_expansion.gd",
 	"res://tests/test_layer_purity.gd",
 	"res://tests/test_data_present.gd",
 ]

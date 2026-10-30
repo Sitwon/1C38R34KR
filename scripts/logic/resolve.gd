@@ -26,6 +26,7 @@ const FUNCTION_DAMAGE_SOURCES := [
 	Types.DamageSource.ATTACKER,
 	Types.DamageSource.BOMB,
 	Types.DamageSource.LINESLICE,
+	Types.DamageSource.MINE,
 ]
 
 
@@ -170,6 +171,9 @@ static func deal_damage(state: GameState, target: Types.Side, amount: int, info:
 
 	var work := info.duplicate()
 	amount = _apply_function_damage_passives(state, target, amount, work, events)
+	amount = _apply_ability_damage_rate(state, target, amount, work, events)
+	if amount <= 0:
+		return
 
 	var final_amount := amount
 	var buff_final: float = float(work.get("buff_bonus", 0))
@@ -235,6 +239,10 @@ static func deal_damage(state: GameState, target: Types.Side, amount: int, info:
 	}
 	if work.has("cause"):
 		evt["cause"] = work["cause"]
+	if work.has("mine_cause"):
+		evt["mine_cause"] = work["mine_cause"]
+	if work.has("rate_delta"):
+		evt["rate_delta"] = work["rate_delta"]
 	events.append(evt)
 
 	if state.hp[target] <= 0:
@@ -269,6 +277,181 @@ static func _apply_function_damage_passives(state: GameState, target: Types.Side
 		work["passive_raw"] = float(work.get("passive_raw", 0)) + added
 		return amount + added
 	return amount
+
+
+## PSV_ABILITY_DAMAGE_RATE (beta 0.5 §8.2). Runs after every additive
+## contribution — base, Buff, PSV_FUNCTION_DAMAGE_INCREASE — and before Shield.
+##
+## Every applicable rate is SUMMED and applied once, so source order cannot
+## matter: MEGATON +50 with BULWARK -25 is +25, never 1.5 x 0.75. The result
+## truncates toward zero and floors at 0.
+##
+## Only the DIRECT Effect hit qualifies. Sync waves that descend from a Bomb or
+## LineSlice carry that Effect's bucket for attribution, but they are Syncs and
+## rates leave Syncs alone (director ruling Q8) — `wave` marks them.
+##
+## The pre-rate analytical splits are scaled with the amount, so the disjoint
+## buckets still sum to what is dealt; `rate_delta` reports the change itself.
+static func _apply_ability_damage_rate(state: GameState, target: Types.Side, amount: int, work: Dictionary, events: Array) -> int:
+	if not FUNCTION_DAMAGE_SOURCES.has(work["source"]) or work.get("wave", false):
+		return amount
+
+	var attacker := Types.opponent_of(target)
+	var instances := Passives.affecting(state.identity, PassiveEffects.ABILITY_DAMAGE_RATE, attacker)
+	if instances.is_empty():
+		return amount
+
+	var rate := 0
+	for inst in instances:
+		var r := Passives.magnitude_of(inst)
+		rate += r
+		events.append({
+			"t": Types.EVT.PASSIVE, "side": attacker, "cause": inst.cause(),
+			"effect": inst.passive["effect_type"], "rate": r,
+		})
+
+	# Integer division truncates toward zero in GDScript, which is the rule.
+	var scaled := maxi(0, (amount * (100 + rate)) / 100)
+	if scaled == amount:
+		return amount
+	var f := float(scaled) / float(amount)
+	work["buff_bonus"] = float(work.get("buff_bonus", 0)) * f
+	if work.get("passive_raw", null) != null:
+		work["passive_raw"] = float(work["passive_raw"]) * f
+	work["rate_delta"] = scaled - amount
+	return scaled
+
+
+# ---------------------------------------------------------------------------
+# Mines (beta 0.5 §6)
+# ---------------------------------------------------------------------------
+
+## How an overlay left the board. A slice is a Sync slice or a LineSlice; every
+## other removal — Bomb blast, line-clear collateral, Transform or Shake
+## stripping, a Boss overwrite — is destruction.
+enum Removal { SLICE = 0, DESTROY }
+
+## Stable trigger-cause names, in `Effects.MINE_FLAG_NAMES` order: the index of
+## a cause IS the index of the flag that enables it.
+const MINE_CAUSE_NAMES := ["slice_owner", "slice_enemy", "destroy_owner", "destroy_enemy", "destroy_host", "expire"]
+const MINE_CAUSE_HOST := 4
+const MINE_CAUSE_EXPIRE := 5
+
+
+## Classifies ONE removal of a Mine against its six authored flags and records
+## it. Returns `{}` for anything that is not a Mine, otherwise the pending
+## trigger for `fire_mines`.
+##
+## Called at the moment of removal, by the code doing the removing — never by a
+## later board scan — so each removal is classified exactly once. A removal
+## made by a HOST-sourced carrier's own Effect is `destroy_host` whatever its
+## mechanism, because the six flags give the HOST only that one category.
+static func mine_removed(state: GameState, t: Tile, removal: Removal, by_side: Types.Side, events: Array) -> Dictionary:
+	if t == null or not t.has_special():
+		return {}
+	return mine_special_removed(state, t.special, removal, by_side, events)
+
+
+## The same classification for an overlay already detached from its Packet — a
+## Shake drafts a whole new board, so it can only say which Mines are gone.
+static func mine_special_removed(state: GameState, sp: Tile.Special, removal: Removal, by_side: Types.Side, events: Array) -> Dictionary:
+	if sp == null or sp.type != Tile.Special.Type.MINE:
+		return {}
+	var cause := 0
+	if state.host_actor:
+		cause = MINE_CAUSE_HOST
+	else:
+		var own := by_side == sp.owner
+		if removal == Removal.SLICE:
+			cause = 0 if own else 1
+		else:
+			cause = 2 if own else 3
+	return _mine_trigger(sp, cause, events)
+
+
+static func _mine_trigger(sp: Tile.Special, cause: int, events: Array) -> Dictionary:
+	var enabled := cause < sp.triggers.size() and sp.triggers[cause] == 1
+	events.append({
+		"t": Types.EVT.MINE_TRIGGER, "side": sp.owner,
+		"program_id": sp.program_id, "fn_id": sp.fn_id,
+		"cause": MINE_CAUSE_NAMES[cause], "enabled": enabled,
+		"damage": sp.damage, "seq": sp.seq,
+	})
+	return {"sp": sp, "cause": cause, "enabled": enabled}
+
+
+## A Mine reaching zero on its controller's countdown tick: the overlay goes,
+## the carrier Packet stays, and damage follows only if `expires` is enabled.
+static func expire_mine(state: GameState, p: Vector2i, events: Array) -> void:
+	var t := state.tile_at(p)
+	if t == null or not t.has_special() or t.special.type != Tile.Special.Type.MINE:
+		return
+	var pending := _mine_trigger(t.special, MINE_CAUSE_EXPIRE, events)
+	t.special = null
+	events.append({"t": Types.EVT.SET_TILE, "p": p, "view": _tile_view(t)})
+	fire_mines(state, [pending], events)
+
+
+## Deals the damage of every ENABLED pending trigger, oldest Mine first, each a
+## separate instance through the ordinary funnel — so Buff, the Function damage
+## PASSIVEs, ability rates, and Shield all apply exactly as to any other
+## Function damage. Always to the NON-controller, whoever caused the trigger.
+##
+## Called after the removing action's own damage (director ruling Q7), so a
+## lethal slice ends the battle before any Mine it set off can fire.
+static func fire_mines(state: GameState, pending: Array, events: Array) -> void:
+	var live: Array = []
+	for m in pending:
+		if not (m as Dictionary).is_empty() and m["enabled"]:
+			live.append(m)
+	live.sort_custom(func(a, b): return a["sp"].seq < b["sp"].seq)
+
+	for m in live:
+		if state.has_winner():
+			return
+		var sp: Tile.Special = m["sp"]
+		var bonus := buff_bonus(state, sp.owner)
+		deal_damage(state, Types.opponent_of(sp.owner), maxi(0, sp.damage) + bonus, {
+			"source": Types.DamageSource.MINE,
+			"label": "Hacker mine" if sp.owner == Types.Side.PLAYER else "System mine",
+			"program_id": sp.program_id,
+			"fn_id": sp.fn_id,
+			"effect_id": Effects.MINE,
+			"buff_bonus": bonus,
+			"mine_cause": MINE_CAUSE_NAMES[m["cause"]],
+		}, events)
+
+
+# ---------------------------------------------------------------------------
+# PSV_STRONG_SLICE_BONUS (beta 0.5 §8.5)
+# ---------------------------------------------------------------------------
+
+## Was this Packet valued at the STRONG tier by the slice that took it? Once per
+## Packet — a Packet strong on both axes is still one strong Packet.
+static func _sliced_strong(t: Tile, axis: int, owner: Types.Side, state: GameState) -> bool:
+	if t.is_neutral():
+		return false
+	if axis == MatchFinder.Condition.COLOR:
+		return Constants.is_strong_color(state.config, owner, t.color)
+	if axis == MatchFinder.Condition.SHAPE:
+		return Constants.is_strong_shape(state.config, owner, t.shape)
+	return false
+
+
+## The strong-slice PASSIVE total for `count` strong Packets, one event per
+## instance rather than per Packet, so BASIC logs stay quiet.
+static func _strong_slice_bonus(state: GameState, owner: Types.Side, count: int, events: Array) -> int:
+	if count <= 0:
+		return 0
+	var total := 0
+	for inst in Passives.affecting(state.identity, PassiveEffects.STRONG_SLICE_BONUS, owner):
+		var add := Passives.magnitude_of(inst) * count
+		total += add
+		events.append({
+			"t": Types.EVT.PASSIVE, "side": owner, "cause": inst.cause(),
+			"effect": inst.passive["effect_type"], "damage": add,
+		})
+	return total
 
 
 # ---------------------------------------------------------------------------
@@ -492,6 +675,7 @@ static func apply_gravity_and_refill(state: GameState, events: Array, constraine
 		return
 
 	var gen := BoardOps.TileGen.new(state.rng, state.next_id)
+	Passives.apply_drop_weights(state.identity, gen)
 	if constrained:
 		_refill_constrained(state, empty, gen)
 	else:
@@ -545,7 +729,7 @@ static func _refill_constrained(state: GameState, cells: Array, gen: BoardOps.Ti
 ## In `Tile.Special.Type` order. The renderer indexes a pack's mark array by
 ## the position a name has here, so this list, the enum, and every pack's
 ## `overlay_mark` are one ordering wearing three hats.
-const SPECIAL_TYPE_NAMES := ["bomb", "buff", "shield", "override", "capacitor", "logic_bomb"]
+const SPECIAL_TYPE_NAMES := ["bomb", "buff", "shield", "override", "capacitor", "logic_bomb", "mine"]
 
 
 ## A Packet as the renderer and the trace see it.
@@ -668,6 +852,8 @@ static func resolve_cascades(
 		}
 		var destroyed: Array[Vector2i] = []
 		var streams := {}
+		var mines: Array = []
+		var strong := 0
 
 		# A wave is a cascade once it is past the first step or involves any
 		# refilled Packet. The first wave may instead be labelled with the Effect
@@ -684,6 +870,9 @@ static func resolve_cascades(
 			if t == null:
 				continue
 			destroyed.append(p)
+			# Directly matched cells are SLICED; line-clear collateral is
+			# DESTROYED (director ruling Q6, after the Mine param notes).
+			mines.append(mine_removed(state, t, Removal.SLICE if direct.has(p) else Removal.DESTROY, owner, events))
 			if t.has_special() and t.special.type == Tile.Special.Type.SHIELD:
 				acc["shields_removed"] += 1
 			if t.is_neutral():
@@ -692,6 +881,8 @@ static func resolve_cascades(
 			var mult: float = slice["m"]
 			var d := match_tile_damage(t, slice["axes"], owner, state)
 			var base: int = d["value"]
+			if _sliced_strong(t, d["axis"], owner, state):
+				strong += 1
 			acc["raw"] += base * mult
 			if mult > 1.0:
 				acc["crit_extra"] += base * (mult - 1.0)
@@ -707,6 +898,7 @@ static func resolve_cascades(
 			accumulate_tile_charge(state, t, slice["axes"], streams, stream_source, stream_source_id)
 
 		_apply_match_passives(state, owner, matches, damage_passives, charge_passives, acc, streams, events)
+		acc["passive_raw"] += _strong_slice_bonus(state, owner, strong, events)
 
 		# Dampening runs after ALL generation, so the order-independent
 		# max(0, base + bonuses − dampening) formula holds however the content
@@ -724,6 +916,7 @@ static func resolve_cascades(
 			events.append({"t": Types.EVT.SHIELD_REMOVED, "count": acc["shields_removed"]})
 
 		_deal_wave_damage(state, owner, acc, bonus, cause, cause_program_id, origin, events)
+		fire_mines(state, mines, events)
 
 		apply_gravity_and_refill(state, events, budget != null and steps >= int(budget), fresh_ids)
 
@@ -854,7 +1047,16 @@ static func _apply_match_passives(state: GameState, owner: Types.Side, matches: 
 ## even when caused by moving a Packet of that colour; and line-clear collateral,
 ## Bomb slices, and Function slices create no qualifying event at all, because
 ## none of them is a detected Sync.
+##
+## Beta 0.5 widens the selector for PSV_EXTRA_MATCH_DAMAGE: a SHAPE selector
+## qualifies shape-axis Syncs of that shape, and ALL qualifies every Sync on any
+## axis, neutral included (FURNACE). Still once per Sync event, never per
+## Packet (director ruling Q5).
 static func _passive_qualifies(inst, m: MatchFinder.Match) -> bool:
+	if inst.passive.get("all_scope", false):
+		return true
+	if inst.passive.get("shape", null) != null:
+		return m.condition == MatchFinder.Condition.SHAPE and m.value == inst.passive["shape"]
 	return m.condition == MatchFinder.Condition.COLOR and m.value == inst.passive["color"]
 
 
@@ -896,6 +1098,7 @@ static func _deal_wave_damage(state: GameState, owner: Types.Side, acc: Dictiona
 
 	var info := {
 		"source": cause,
+		"wave": true,
 		"label": "Hacker Sync" if owner == Types.Side.PLAYER else "System Sync",
 		# Under suppression the crit cross-cut reports 0: the multiplier's
 		# contribution to BASE Sync damage is exactly what is suppressed, and
@@ -1005,12 +1208,14 @@ static func detonate_at(state: GameState, p: Vector2i, spec: Dictionary, events:
 	var raw := 0
 	var shields_removed := 0
 	var sliced: Array[Tile] = []
+	var mines: Array = []
 	for c in cells:
 		var t := state.tile_at(c)
 		if t.has_special() and t.special.type == Tile.Special.Type.SHIELD:
 			shields_removed += 1
 		sliced.append(t)
 		raw += base_damage(t, state, owner)
+		mines.append(mine_removed(state, t, Removal.DESTROY, owner, events))
 
 	events.append({"t": Types.EVT.DESTROY, "cells": cells})
 	for c in cells:
@@ -1035,6 +1240,7 @@ static func detonate_at(state: GameState, p: Vector2i, spec: Dictionary, events:
 			"effect_id": Effects.BOMB,
 			"buff_bonus": bonus,
 		}, events)
+	fire_mines(state, mines, events)
 
 	if state.has_winner() or not settle:
 		return
@@ -1102,10 +1308,17 @@ static func resolve_line_slice(state: GameState, target: Vector2i, spec: Diction
 	# contribute nothing.
 	var raw := 0
 	var shields_removed := 0
+	var strong := 0
+	var mines: Array = []
 	for t in sliced_tiles:
 		if t.has_special() and t.special.type == Tile.Special.Type.SHIELD:
 			shields_removed += 1
 		raw += base_damage(t, state, owner)
+		# The ordinary colour/shape profile values a collateral Packet on its
+		# better axis, so either strong axis makes it a strong Packet.
+		if not t.is_neutral() and (Constants.is_strong_color(state.config, owner, t.color) or Constants.is_strong_shape(state.config, owner, t.shape)):
+			strong += 1
+		mines.append(mine_removed(state, t, Removal.SLICE, owner, events))
 
 	events.append({"t": Types.EVT.DESTROY, "cells": sliced_pts})
 	for c in sliced_pts:
@@ -1120,7 +1333,8 @@ static func resolve_line_slice(state: GameState, target: Vector2i, spec: Diction
 	var damage := 0
 	if params["dealDamage"] == Content.DEAL_DAMAGE_YES:
 		var bonus := buff_bonus(state, owner)
-		damage = raw + bonus
+		var strong_bonus := _strong_slice_bonus(state, owner, strong, events)
+		damage = raw + strong_bonus + bonus
 		# Function damage, so Reinforced Connection — which suppresses BASE SYNC
 		# damage only — does not touch it.
 		deal_damage(state, Types.opponent_of(owner), damage, {
@@ -1130,7 +1344,9 @@ static func resolve_line_slice(state: GameState, target: Vector2i, spec: Diction
 			"fn_id": spec.get("fn_id", ""),
 			"effect_id": Effects.LINESLICE,
 			"buff_bonus": bonus,
+			"passive_raw": float(strong_bonus),
 		}, events)
+	fire_mines(state, mines, events)
 
 	return {
 		"dimension": "column" if vertical else "row",
@@ -1287,14 +1503,30 @@ static func apply_transform(state: GameState, spec: Dictionary, events: Array) -
 	chosen.append_array(from_tier2)
 
 	var result: Dictionary = spec["axis_result"]
+	var mines: Array = []
 	for p in chosen:
 		var t := state.tile_at(p)
+		if _overlay_destroyed_by(t, spec, result):
+			mines.append(mine_removed(state, t, Removal.DESTROY, spec["owner"], events))
 		_apply_overlay_treatment(t, spec, result, outcome)
 		_apply_result_axes(state, t, result)
 		(outcome["cells"] as Array).append(p)
 		events.append({"t": Types.EVT.SET_TILE, "p": p, "view": _tile_view(t)})
 
+	fire_mines(state, mines, events)
 	return outcome
+
+
+## Would `_apply_overlay_treatment` strip this Packet's overlay? Asked first so
+## a Mine can be classified while it still exists.
+static func _overlay_destroyed_by(t: Tile, spec: Dictionary, result: Dictionary) -> bool:
+	if not t.has_special():
+		return false
+	var treatment: int = spec["params"]["specialPacketTreatment"]
+	return result["neutral"] or not (
+		treatment == Content.SPECIALS_RETAIN_ALL
+		or (treatment == Content.SPECIALS_RETAIN_OWN and t.special.owner == spec["owner"])
+	)
 
 
 ## Retaining preserves the overlay's ownership and Effect-specific state —

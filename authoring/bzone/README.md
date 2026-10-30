@@ -1,4 +1,4 @@
-# Asset bundle — `v0`
+# Asset bundle — `bzone`
 
 Everything in this folder is art. There is nothing here about the game
 engine, and you do not need to know anything about it.
@@ -38,6 +38,7 @@ two states apart.
 | `bar_fill_link` vs `bar_fill_ice` | They are the two sides' health, side by side in the header. Same colour means you cannot tell who is winning. |
 | `badge_player` vs `badge_enemy` | The ONLY signal of who owns an overlay. One must read light, the other dark. |
 | the four `program_box_*` | Idle, charged, yours-and-charged, armed. Four states of the same control. |
+| the seven `mark_*` | The whole type signal since D-037 suspended the ring. Two that read alike are two Boss mechanics a player cannot tell apart. |
 | `button_selected` vs `button_disabled` | Chosen versus unavailable. Differing only in brightness is what made this ambiguous before. |
 | the six palette colours | Packet identity. Two that read alike make a match ambiguous. |
 
@@ -92,10 +93,16 @@ Every other colour lives in the PNG that uses it.
 | `overlay/mark_buff.png` | 64×64 | **TINT** | Buff, inside the badge. |
 | `overlay/mark_shield.png` | 64×64 | **TINT** | Shield, inside the badge. |
 | `overlay/mark_override.png` | 64×64 | **TINT** | Boss Override, inside the badge. |
+| `overlay/mark_capacitor.png` | 64×64 | **TINT** | RAHNDAHL Capacitor, inside the badge. Two plates. |
+| `overlay/mark_logic_bomb.png` | 64×64 | **TINT** | NEHBOCYET Logic Bomb, inside the badge. Descending chevrons. |
+| `overlay/mark_mine.png` | 64×64 | **TINT** | Mine FRAME, drawn AROUND the badge across the overlay's full span; keep the centre empty for the countdown digits. |
 | `overlay/ring_bomb.png` | 128×128 | **TINT** | SUSPENDED — retained, not drawn. See D-037. |
 | `overlay/ring_buff.png` | 128×128 | **TINT** | SUSPENDED — retained, not drawn. |
 | `overlay/ring_shield.png` | 128×128 | **TINT** | SUSPENDED — retained, not drawn. |
 | `overlay/ring_override.png` | 128×128 | **TINT** | SUSPENDED — retained, not drawn. |
+| `overlay/ring_capacitor.png` | 128×128 | **TINT** | SUSPENDED — retained, not drawn. |
+| `overlay/ring_logic_bomb.png` | 128×128 | **TINT** | SUSPENDED — retained, not drawn. |
+| `overlay/ring_mine.png` | 128×128 | **TINT** | SUSPENDED — retained, not drawn. |
 | `overlay/digit_0.png` | 96×96 | **TINT** | Countdown numeral, inside the badge. |
 | `overlay/digit_1.png` | 96×96 | **TINT** | Countdown numeral. |
 | `overlay/digit_2.png` | 96×96 | **TINT** | Countdown numeral. |

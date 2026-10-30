@@ -152,7 +152,10 @@ func _test_enum_ordering(t: TestCase) -> void:
 	t.eq("Side.ENEMY opposes PLAYER", Types.opponent_of(Types.Side.ENEMY), Types.Side.PLAYER)
 
 	t.group("constants / event registry")
-	t.eq("EVT entry count", Types.EVT.size(), 34)
+	# 34 from the alpha, plus beta 0.5's MINE_TRIGGER — named, so an
+	# UNEXPECTED addition still fails.
+	t.eq("EVT entry count", Types.EVT.size(), 34 + 1)
+	t.check("MINE_TRIGGER is the beta-only addition", Types.EVT.has("MINE_TRIGGER"))
 	t.check("validate_event rejects an event with no discriminator", not Types.validate_event({}))
 	t.check("validate_event rejects an unknown type", not Types.validate_event({"t": "nonsense"}))
 	t.check("validate_event accepts a known type", Types.validate_event({"t": Types.EVT.DAMAGE}))

@@ -189,6 +189,54 @@ static func bigger_bomb_steps(identity: Dictionary, owner: Types.Side) -> int:
 	return affecting(identity, PassiveEffects.BIGGER_BOMB, owner).size()
 
 
+## A signed PASSIVE magnitude (countdown adjust, ability rate) or 0.
+static func magnitude_of(inst: Instance) -> int:
+	return _magnitude(inst)
+
+
+## Total PSV_COUNTDOWN_ADJUST for countdown specials `owner` places, plus the
+## instances that contributed, for attribution.
+static func countdown_adjust(identity: Dictionary, owner: Types.Side) -> Array:
+	return affecting(identity, PassiveEffects.COUNTDOWN_ADJUST, owner)
+
+
+## PSV_PACKET_DROP_RATE (beta 0.5 §8.3): relative generation weights for the
+## SHARED board, in percent units — every value starts at 100 and each active
+## instance adds its percentage to its target. Two +15 RED make RED 130, not
+## 115 x 1.15.
+##
+## Board-wide, so every active instance counts regardless of side; the loader
+## rejects the ENEMY scope that would make that ambiguous. Leaves the generator
+## UNWEIGHTED when nothing applies, so ordinary generation keeps its exact
+## original draw path.
+static func apply_drop_weights(identity: Dictionary, gen) -> void:
+	if identity.is_empty():
+		return
+	var colors: Array[int] = []
+	var shapes: Array[int] = []
+	for inst in active(identity):
+		if inst.passive["effect_type"] != PassiveEffects.PACKET_DROP_RATE:
+			continue
+		var pct := _magnitude(inst)
+		if inst.passive.get("color", null) != null:
+			if colors.is_empty():
+				colors = _uniform(Constants.COLOR_COUNT)
+			colors[int(inst.passive["color"])] += pct
+		elif inst.passive.get("shape", null) != null:
+			if shapes.is_empty():
+				shapes = _uniform(Constants.SHAPE_COUNT)
+			shapes[int(inst.passive["shape"])] += pct
+	gen.color_weights = colors
+	gen.shape_weights = shapes
+
+
+static func _uniform(n: int) -> Array[int]:
+	var out: Array[int] = []
+	for i in n:
+		out.append(100)
+	return out
+
+
 static func _magnitude(inst: Instance) -> int:
 	var m = inst.passive["magnitude"]
 	return 0 if m == null else int(m)

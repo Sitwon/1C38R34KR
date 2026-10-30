@@ -1,4 +1,7 @@
-"""Draws the Beta 0.4 Boss overlay marks into every authoring bundle.
+"""Draws the generated overlay marks into every authoring bundle.
+
+Beta 0.4 added the two Boss marks; beta 0.5 adds MINE (below). The output is
+deterministic, so re-running regenerates the 0.4 marks byte-for-byte.
 
     python tools/gen_boss_marks.py            # every pack under authoring/
     python tools/gen_boss_marks.py v0 bzone   # named packs
@@ -90,7 +93,34 @@ def logic_bomb(u, v, t=1.0):
     return False
 
 
-SHAPES = {"mark_capacitor": capacitor, "mark_logic_bomb": logic_bomb}
+def mine(u, v, t=1.0):
+    """A naval-mine FRAME: a thin ring with eight spikes, hollow in the middle.
+
+    Unlike every other mark, MINE is drawn across the overlay's FULL span (the
+    suspended ring's coordinate space), around the badge rather than inside it,
+    because a Mine is always armed and an armed overlay's centre is taken by
+    its countdown digits (beta 0.5 §7). The ring sits just outside the badge
+    rim, which is at radius 0.5 / OVERLAY_SPAN (1.38) = 0.362 here; the centre
+    stays empty for the digits.
+    """
+    import math
+    dx, dy = u - 0.5, v - 0.5
+    r = math.hypot(dx, dy)
+    if abs(r - 0.395) < 0.024 * t:
+        return True
+    # Spikes broad at the base and long: at the pixel packs' 32px grid thinner
+    # ones vanished and the frame read as a plain ring, too close to OVERRIDE.
+    if 0.40 < r < 0.50:
+        a = math.atan2(dy, dx)
+        k = round(a / (math.pi / 4))
+        perp = r * abs(math.sin(a - k * math.pi / 4))
+        half = 0.08 * t * (0.50 - r) / 0.10 + 0.012 * t
+        return perp < half
+    return False
+
+
+SHAPES = {"mark_capacitor": capacitor, "mark_logic_bomb": logic_bomb, "mark_mine": mine}
+RINGS = ("ring_capacitor", "ring_logic_bomb", "ring_mine")
 
 
 def render(fn, size, supersample):
@@ -181,7 +211,7 @@ def main():
             write_mark(overlay / ("%s.png" % name), styled(fn, style), MARK_SIZE)
         # Suspended rings: keep the pack's own treatment.
         src = overlay / "ring_override.png"
-        for name in ("ring_capacitor", "ring_logic_bomb"):
+        for name in RINGS:
             if src.exists():
                 shutil.copyfile(src, overlay / ("%s.png" % name))
             else:

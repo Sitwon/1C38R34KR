@@ -5,6 +5,16 @@ extends RefCounted
 ## The authored data is expected to load cleanly, so any error here is either a
 ## port defect or a genuine content problem — and the diagnostics are detailed
 ## enough to tell which.
+##
+## Beta 0.5: every loader here reads the FROZEN alpha-era datasets
+## (`tests/fixtures/legacy_data`). These tests compare against alpha fixtures —
+## diagnostics, fingerprint, row shapes — and live content has deliberately
+## moved past the alpha (§17). Run on live data they would fail for the
+## expected reason and prove nothing; run on the frozen copy they still prove
+## the readers, contracts, and fingerprint are unperturbed by the beta 0.5
+## code. Live content is covered by `test_content_expansion.gd`.
+
+const LEGACY_DATA := "res://tests/fixtures/legacy_data"
 
 
 func run(t: TestCase) -> void:
@@ -18,6 +28,7 @@ func run(t: TestCase) -> void:
 func _test_program_readers(t: TestCase) -> void:
 	t.group("load / Program datasets")
 	var loader := ContentLoader.new()
+	loader.data_dir = LEGACY_DATA
 	loader.read_programs("hacker_programs", DataIssues.DATASET_HACKER_PROGRAMS, "PRG_H_")
 	loader.read_programs("system_programs", DataIssues.DATASET_SYSTEM_PROGRAMS, "PRG_S_")
 
@@ -50,6 +61,7 @@ func _test_program_readers(t: TestCase) -> void:
 func _test_function_reader(t: TestCase) -> void:
 	t.group("load / Function dataset")
 	var loader := ContentLoader.new()
+	loader.data_dir = LEGACY_DATA
 	loader.read_functions()
 
 	_report_unexpected(t, loader, "Function dataset")
@@ -85,6 +97,7 @@ func _test_function_reader(t: TestCase) -> void:
 func _test_passive_reader(t: TestCase) -> void:
 	t.group("load / PASSIVE dataset")
 	var loader := ContentLoader.new()
+	loader.data_dir = LEGACY_DATA
 	loader.read_passives()
 
 	_report_unexpected(t, loader, "PASSIVE dataset")
@@ -138,6 +151,7 @@ func _test_passive_reader(t: TestCase) -> void:
 func _test_identity_datasets(t: TestCase) -> void:
 	t.group("load / all ten datasets")
 	var loader := ContentLoader.new()
+	loader.data_dir = LEGACY_DATA
 	loader.read_all()
 
 	var errs := loader.issues.errors()
@@ -204,6 +218,7 @@ func _test_identity_datasets(t: TestCase) -> void:
 func _test_payload_grammar(t: TestCase) -> void:
 	t.group("load / payload grammar")
 	var loader := ContentLoader.new()
+	loader.data_dir = LEGACY_DATA
 	loader.read_all()
 	loader.parse_payloads()
 
@@ -362,6 +377,7 @@ func _compare_diagnostics(t: TestCase, loader: ContentLoader) -> void:
 func _test_prefix_crosscheck(t: TestCase) -> void:
 	t.group("load / prefix cross-check")
 	var loader := ContentLoader.new()
+	loader.data_dir = LEGACY_DATA
 	# Read the System Program file while claiming it is the Hacker Program
 	# dataset. Every row should be rejected on its prefix.
 	loader.read_programs("system_programs", DataIssues.DATASET_HACKER_PROGRAMS, "PRG_H_")

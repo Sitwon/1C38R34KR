@@ -22,6 +22,10 @@ extends RefCounted
 ## RNG state, a dropped countdown, or a lost stamped area pattern. Continuing to
 ## the end and comparing the event stream does not.
 
+## Bumped to 4 (beta 0.5): an overlay can be a Mine, which carries its damage
+## and six trigger flags, and the metrics accumulator gained the Mine and
+## environmental-damage buckets. Older saves are rejected (D-030).
+##
 ## Bumped to 3: the envelope gained the Boss-phase counter and ECHOFALL's hidden
 ## axis. A schema-2 save has neither, and resuming an ECHOFALL battle with the
 ## concealment silently cleared would change what the next move means — so it is
@@ -34,7 +38,7 @@ extends RefCounted
 ## authorization requires the metrics state needed for consistent continuation
 ## to be part of the save, and a battle that resumes reporting half its damage
 ## is exactly the failure that requirement exists to prevent.
-const SCHEMA := 3
+const SCHEMA := 4
 const SAVE_PATH := "user://save.json"
 
 
@@ -112,6 +116,7 @@ static func _special_to_dict(sp: Tile.Special) -> Dictionary:
 		"delivers": sp.delivers, "area_pattern": sp.area_pattern,
 		"magnitude": sp.magnitude, "program_id": sp.program_id, "fn_id": sp.fn_id,
 		"deal_damage": sp.deal_damage, "gain_charge": sp.gain_charge, "seq": sp.seq,
+		"damage": sp.damage, "triggers": sp.triggers.duplicate(),
 	}
 
 
@@ -242,6 +247,9 @@ static func _special_from_dict(raw: Dictionary) -> Tile.Special:
 	sp.deal_damage = int(raw["deal_damage"])
 	sp.gain_charge = int(raw["gain_charge"])
 	sp.seq = int(raw["seq"])
+	sp.damage = int(raw["damage"])
+	for v in (raw["triggers"] as Array):
+		sp.triggers.append(int(v))
 	return sp
 
 

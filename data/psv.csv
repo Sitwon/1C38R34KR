@@ -8,3 +8,14 @@ PSV_006,PSV_EXTRA_MATCH_CHARGE,YEL:1,CONTINUAL,,OWNER,
 PSV_007,PSV_BIGGER_BOMB,,CONTINUAL,,OWNER,
 PSV_008,PSV_CARRIER,,START_OF_TURN,FNC_016,OWNER,
 PSV_009,PSV_CARRIER,,START_OF_TURN,FNC_017,OWNER,
+PSV_010,PSV_COUNTDOWN_ADJUST,-1,CONTINUAL,,OWNER,"adjust countdown by the param for all countdown specials when they are placed, specials with countdown zero activate immediately"
+PSV_011,PSV_ABILITY_DAMAGE_RATE,50,CONTINUAL,,OWNER,"abilities damage is adjusted by the param percentage, can be negative"
+PSV_012,PSV_PACKET_DROP_RATE,15:RED,CONTINUAL,,OWNER,increases the chance packets drop with the first param being the percentage increase and the second being characteristic that has increased odds
+PSV_013,PSV_SELF_DAMAGE,10,START_OF_TURN,,OWNER,"currently activated combatant takes param damage during the host phase at the start of his turn, check for game over after damage is dealt"
+PSV_014,PSV_EXTRA_MATCH_DAMAGE,ALL:1,CONTINUAL,,OWNER,HST FURNACE: all sync slices deal +1; favors aggressive play on both sides
+PSV_015,PSV_EXTRA_MATCH_DAMAGE,BLU:1,CONTINUAL,,OWNER,UPG: +1 sync damage on BLU packets
+PSV_016,PSV_PACKET_DROP_RATE,15:YEL,CONTINUAL,,OWNER,UPG: more YEL packets drop
+PSV_017,PSV_ABILITY_DAMAGE_RATE,-25,CONTINUAL,,ENEMY,UPG: enemy ability damage reduced 25%
+PSV_018,PSV_COUNTDOWN_ADJUST,1,CONTINUAL,,ENEMY,UPG: enemy countdown specials +1 (slower bombs/mines)
+PSV_019,PSV_EXTRA_MATCH_CHARGE,GRE:1,CONTINUAL,,OWNER,UPG: +1 charge from GRE syncs
+PSV_020,PSV_STRONG_SLICE_BONUS,1,CONTINUAL,,OWNER,UPG: +1 damage per strong-axis packet sliced (stacks with base 2)

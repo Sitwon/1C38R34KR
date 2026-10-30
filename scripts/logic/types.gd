@@ -113,7 +113,10 @@ enum Readiness { READY = 0, CHARGING, EMPTY }
 
 ## The disjoint causal damage buckets. Totals must equal the sum of attributed
 ## contributions, so these must stay mutually exclusive.
-enum DamageSource { MATCH = 0, ATTACKER, BOMB, LINESLICE, TRANSFORM }
+## Beta 0.5 appends MINE (a Mine's trap damage — Function-origin ability
+## damage, never Bomb or ATTACK) and PASSIVE (environmental damage such as
+## PSV_SELF_DAMAGE, dealt by no combatant). Appended so saved ordinals hold.
+enum DamageSource { MATCH = 0, ATTACKER, BOMB, LINESLICE, TRANSFORM, MINE, PASSIVE }
 
 ## Which Packet axis ECHOFALL hides. PRESENTATION only — the board's real
 ## colour and shape are what every rule keeps reading (beta 0.4 §8.2).
@@ -168,6 +171,7 @@ const EVT := {
 	FALL = &"fall",
 	HINT_SHOWN = &"hintShown",
 	LINE_CLEAR = &"lineClear",
+	MINE_TRIGGER = &"mineTrigger",
 	MSG = &"msg",
 	NO_MATCH = &"noMatch",
 	OP = &"op",
@@ -234,7 +238,7 @@ const SESSION_PHASE_NAMES := [
 const OWNER_KIND_NAMES := ["program", "deck", "passive", "boss"]
 const PASSIVE_SOURCE_KIND_NAMES := ["HAK", "SYS", "HST", "UPG"]
 const READINESS_NAMES := ["READY", "CHARGING", "EMPTY"]
-const DAMAGE_SOURCE_NAMES := ["match", "attacker", "bomb", "lineslice", "transform"]
+const DAMAGE_SOURCE_NAMES := ["match", "attacker", "bomb", "lineslice", "transform", "mine", "passive"]
 const CONCEAL_AXIS_NAMES := ["color", "shape"]
 const CHARGE_STREAM_SOURCE_NAMES := [
 	"SYNC", "CASCADE", "PASSIVE_MODIFIED_SYNC", "EFFECT_DESTRUCTION", "EFFECT_TRANSFORM",

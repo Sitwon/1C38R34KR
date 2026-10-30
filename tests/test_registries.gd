@@ -10,6 +10,19 @@ extends RefCounted
 
 const FIXTURE := "res://tests/fixtures/registries.json"
 
+## Registered in beta 0.5 and absent from the alpha, by design.
+const BETA_ONLY_EFFECTS := [Effects.MINE]
+const BETA_ONLY_PASSIVES := [
+	PassiveEffects.COUNTDOWN_ADJUST, PassiveEffects.ABILITY_DAMAGE_RATE,
+	PassiveEffects.PACKET_DROP_RATE, PassiveEffects.SELF_DAMAGE,
+	PassiveEffects.STRONG_SLICE_BONUS,
+]
+
+## Alpha contracts beta 0.5 deliberately widened, with their beta param kinds.
+const WIDENED_PARAMS := {
+	PassiveEffects.EXTRA_MATCH_DAMAGE: [PassiveEffects.ParamKind.SELECTOR, PassiveEffects.ParamKind.POSITIVE_INT],
+}
+
 ## The alpha's target kinds are strings; ours are enum values.
 const TARGET_KIND_NAMES := {
 	"unit": Types.TargetKind.UNIT,
@@ -64,7 +77,12 @@ func _test_param_names(t: TestCase, fixture: Dictionary) -> void:
 func _test_effects(t: TestCase, fixture: Dictionary) -> void:
 	t.group("registries / effects")
 	var expected: Dictionary = fixture["effects"]
-	t.eq("registered effect count", Effects.registry().size(), expected.size())
+	# Beta 0.5 registers EFFECT_MINE, which the alpha never had. Every alpha
+	# contract must still be present and unchanged; the beta-only addition is
+	# named explicitly so an UNEXPECTED extra still fails.
+	t.eq("registered effect count", Effects.registry().size(), expected.size() + BETA_ONLY_EFFECTS.size())
+	for id in BETA_ONLY_EFFECTS:
+		t.check("beta-only %s is registered" % id, Effects.is_effect_id(id))
 
 	for id in expected.keys():
 		var want: Dictionary = expected[id]
@@ -100,7 +118,9 @@ func _test_effects(t: TestCase, fixture: Dictionary) -> void:
 func _test_passives(t: TestCase, fixture: Dictionary) -> void:
 	t.group("registries / passives")
 	var expected: Dictionary = fixture["passives"]
-	t.eq("registered passive-effect count", PassiveEffects.registry().size(), expected.size())
+	t.eq("registered passive-effect count", PassiveEffects.registry().size(), expected.size() + BETA_ONLY_PASSIVES.size())
+	for id in BETA_ONLY_PASSIVES:
+		t.check("beta-only %s is registered" % id, PassiveEffects.is_effect_id(id))
 
 	for id in expected.keys():
 		var want: Dictionary = expected[id]
@@ -112,6 +132,10 @@ func _test_passives(t: TestCase, fixture: Dictionary) -> void:
 		var want_params := []
 		for p in (want["params"] as Array):
 			want_params.append(PARAM_KIND_NAMES[str(p)])
+		# Beta 0.5 §9 widens EXTRA_MATCH_DAMAGE's colour to a SELECTOR (colour,
+		# shape, or ALL) — a superset, so every alpha row still parses the same.
+		if WIDENED_PARAMS.has(id):
+			want_params = WIDENED_PARAMS[id]
 		t.eq_seq("%s params" % id, got["params"], want_params)
 
 		# The activation is part of the contract, not a free combination: a

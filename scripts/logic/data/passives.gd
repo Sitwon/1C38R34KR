@@ -20,6 +20,11 @@ const FUNCTION_DAMAGE_INCREASE := "PSV_FUNCTION_DAMAGE_INCREASE"
 const PERM_SHIELD := "PSV_PERM_SHIELD"
 const BIGGER_BOMB := "PSV_BIGGER_BOMB"
 const CARRIER := "PSV_CARRIER"
+const COUNTDOWN_ADJUST := "PSV_COUNTDOWN_ADJUST"
+const ABILITY_DAMAGE_RATE := "PSV_ABILITY_DAMAGE_RATE"
+const PACKET_DROP_RATE := "PSV_PACKET_DROP_RATE"
+const SELF_DAMAGE := "PSV_SELF_DAMAGE"
+const STRONG_SLICE_BONUS := "PSV_STRONG_SLICE_BONUS"
 
 ## Typed token kinds a parameter tuple can require.
 ##   COLOR        — a canonical colour token (RED/YEL/MAG/GRE/CYA/BLU)
@@ -27,7 +32,24 @@ const CARRIER := "PSV_CARRIER"
 ##                  happens to spell ALL, so "which axis" and "how broad" can
 ##                  never be confused by validation or by a reader.
 ##   POSITIVE_INT — a magnitude >= 1
-enum ParamKind { COLOR = 0, SCOPE, POSITIVE_INT }
+##   SIGNED_INT   — any integer, shown with an explicit sign (+1 / -1)
+##   NON_NEG_INT  — a magnitude >= 0
+##   PERCENT      — a positive integer percentage, shown as `15%`
+##   SIGNED_PERCENT — a signed integer percentage, shown as `+50%` / `-25%`
+##   CHARACTERISTIC — one colour OR shape token (packet-drop target)
+##   SELECTOR     — a colour, a shape, or ALL (match-damage qualifier)
+##
+## New members go on the END: `PARAM_KIND_NAMES` and stored rows index by them.
+enum ParamKind {
+	COLOR = 0, SCOPE, POSITIVE_INT, SIGNED_INT, NON_NEG_INT,
+	PERCENT, SIGNED_PERCENT, CHARACTERISTIC, SELECTOR,
+}
+
+## How each kind reads in a validation message, in `ParamKind` order.
+const PARAM_KIND_NAMES := [
+	"color", "scope", "positiveInt", "signedInt", "nonNegativeInt",
+	"percent", "signedPercent", "color|shape", "color|shape|ALL",
+]
 
 ## The complete authored activation vocabulary.
 enum Activation { CONTINUAL = 0, START_OF_TURN }
@@ -78,11 +100,13 @@ static func is_agent_scope(s: String) -> bool:
 
 static func _build() -> void:
 	_registry = {
-		# Extra raw Sync damage once per qualifying colour-axis Sync, applied
-		# before crit, flooring, Buff, and Shield.
+		# Extra raw Sync damage once per qualifying Sync EVENT, applied before
+		# crit, flooring, Buff, and Shield. The selector is a colour (colour-axis
+		# Syncs of that colour), a shape (shape-axis Syncs of that shape), or ALL
+		# (every Sync on any axis — beta 0.5 §9, FURNACE).
 		EXTRA_MATCH_DAMAGE: {
 			"id": EXTRA_MATCH_DAMAGE,
-			"params": [ParamKind.COLOR, ParamKind.POSITIVE_INT],
+			"params": [ParamKind.SELECTOR, ParamKind.POSITIVE_INT],
 			"activation": Activation.CONTINUAL,
 			"payload": Payload.FORBIDDEN,
 		},
@@ -131,5 +155,43 @@ static func _build() -> void:
 			"params": [],
 			"activation": Activation.START_OF_TURN,
 			"payload": Payload.REQUIRED,
+		},
+		# Beta 0.5 §8.1. Added to a countdown special's authored countdown ONCE,
+		# when it is placed; every applicable instance sums, floored at 0.
+		COUNTDOWN_ADJUST: {
+			"id": COUNTDOWN_ADJUST,
+			"params": [ParamKind.SIGNED_INT],
+			"activation": Activation.CONTINUAL,
+			"payload": Payload.FORBIDDEN,
+		},
+		# Beta 0.5 §8.2. Percentage applied once, as the SUM of every applicable
+		# instance, to an attacker's direct Function/Effect damage.
+		ABILITY_DAMAGE_RATE: {
+			"id": ABILITY_DAMAGE_RATE,
+			"params": [ParamKind.SIGNED_PERCENT],
+			"activation": Activation.CONTINUAL,
+			"payload": Payload.FORBIDDEN,
+		},
+		# Beta 0.5 §8.3. Relative weight added to one colour or shape in new
+		# Packet generation. Board-wide: it has no meaningful ENEMY scope.
+		PACKET_DROP_RATE: {
+			"id": PACKET_DROP_RATE,
+			"params": [ParamKind.PERCENT, ParamKind.CHARACTERISTIC],
+			"activation": Activation.CONTINUAL,
+			"payload": Payload.FORBIDDEN,
+		},
+		# Beta 0.5 §8.4. PASSIVE damage to the combatant whose turn begins.
+		SELF_DAMAGE: {
+			"id": SELF_DAMAGE,
+			"params": [ParamKind.NON_NEG_INT],
+			"activation": Activation.START_OF_TURN,
+			"payload": Payload.FORBIDDEN,
+		},
+		# Beta 0.5 §8.5. Added once per sliced Packet the slice valued as strong.
+		STRONG_SLICE_BONUS: {
+			"id": STRONG_SLICE_BONUS,
+			"params": [ParamKind.POSITIVE_INT],
+			"activation": Activation.CONTINUAL,
+			"payload": Payload.FORBIDDEN,
 		},
 	}

@@ -295,6 +295,7 @@ static func _create_battle(p: Dictionary) -> GameState:
 	s.deck_charge = int(deck["fn"]["cost"]) if deck["fn"]["start_charged"] else 0
 
 	var gen := BoardOps.TileGen.new(s.rng, s.next_id)
+	Passives.apply_drop_weights(s.identity, gen)
 	s.board = BoardOps.generate_initial(gen)
 	s.next_id = gen.next_id
 

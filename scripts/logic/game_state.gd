@@ -64,6 +64,11 @@ var hidden_axis: int = -1
 ## an event, and a save is never taken there. A save that somehow captured it
 ## as true would resume unable to detonate anything.
 var bomb_chain_active := false
+
+## True only while a HOST-sourced PASSIVE carrier's Function is resolving.
+## A Mine removed then is `destroy_host` (beta 0.5 §6.6). Not serialized, for
+## the same reason as `bomb_chain_active`: a save is never taken mid-resolution.
+var host_actor := false
 var config := {}
 
 ## Collision-resistant and stable across save and restore. Normalized out of

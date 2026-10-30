@@ -28,7 +28,7 @@ const LEVEL_NAMES: Array[String] = ["BASIC", "VERBOSE", "COMPLETE"]
 ## Versioned independently of the save schema: a logging change must not
 ## invalidate saves, and a save change must not silently reinterpret old logs.
 const LOGGING_SCHEMA_VERSION := 1
-const METRICS_SCHEMA_VERSION := 1
+const METRICS_SCHEMA_VERSION := 2  ## 2: beta 0.5 Mine and environmental-damage buckets
 
 ## In-memory caps. Retention on disk is governed first by `LogStore`'s byte
 ## budget and second by these; both exist because either alone fails — a byte
@@ -127,7 +127,7 @@ func _fresh(state: GameState) -> Dictionary:
 
 
 func _fresh_damage() -> Dictionary:
-	return {"match": 0, "attacker": 0, "bomb": 0, "lineslice": 0, "transform": 0, "total": 0}
+	return {"match": 0, "attacker": 0, "bomb": 0, "lineslice": 0, "transform": 0, "mine": 0, "total": 0}
 
 
 func _consume_one(state: GameState, ev: Dictionary) -> void:
@@ -248,6 +248,10 @@ func _consume_one(state: GameState, ev: Dictionary) -> void:
 		# battle metrics record, not per-turn counters. Metrics consumes them;
 		# nothing per-turn is written here.
 		Types.EVT.DAMAGE:
+			# Environmental PASSIVE damage is dealt by NO combatant, so it is not
+			# credited to the target's opponent (beta 0.5 §8.4).
+			if int(ev["source"]) == Types.DamageSource.PASSIVE:
+				return
 			var dealer := Types.opponent_of(int(ev["target"]))
 			var bucket: Dictionary = _current["damage"][dealer]
 			var name := _damage_bucket(int(ev["source"]))
@@ -271,6 +275,8 @@ func _damage_bucket(source: int) -> String:
 			return "lineslice"
 		Types.DamageSource.TRANSFORM:
 			return "transform"
+		Types.DamageSource.MINE:
+			return "mine"
 		_:
 			return "bomb"
 

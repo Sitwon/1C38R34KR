@@ -336,7 +336,8 @@ func _test_boss_battle(t: TestCase) -> void:
 	# §21.7 — the committed HOST and every acquired UPGRADE reach the battle.
 	t.eq("committed HOST reaches the battle", s.identity["host_id"], r.host_id)
 	t.eq("every acquired UPGRADE reaches the battle", s.identity["upgrade_ids"], r.upgrade_ids)
-	t.eq("all four of them", (s.identity["upgrade_ids"] as Array).size(), Content.all_upgrades().size())
+	# One UPGRADE per path choice, one choice per Run step. Equal to the whole pool only while the pool held exactly four (beta 0.4).
+	t.eq("all four of them", (s.identity["upgrade_ids"] as Array).size(), Run.RUN_LENGTH)
 	t.eq("the confirmed Build reaches the battle", s.identity["hacker_programs"], r.build)
 	t.eq("the frozen LINK ceiling is used", s.hp[Types.Side.PLAYER], r.hacker_max_link)
 

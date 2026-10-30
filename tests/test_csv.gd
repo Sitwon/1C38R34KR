@@ -32,7 +32,9 @@ func _test_datasets(t: TestCase, fixture: Dictionary) -> void:
 	for key in datasets.keys():
 		var expected: Dictionary = datasets[key]
 		var expected_rows: Array = expected["rows"]
-		var parsed := Csv.parse_file("res://data/%s.csv" % key)
+		# The frozen alpha-era copy (beta 0.5 §17.1): this proves the PARSER, and
+		# live sheets have since gained rows the alpha never had.
+		var parsed := Csv.parse_file("res://tests/fixtures/legacy_data/%s.csv" % key)
 
 		if parsed["error"] != "":
 			t.check("%s.csv parses without a structural error" % key, false)

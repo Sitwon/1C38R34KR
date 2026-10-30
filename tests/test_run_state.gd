@@ -58,10 +58,12 @@ func _test_pools(t: TestCase) -> void:
 	var all_hst := Content.all_hosts()
 	var pool_hst := Content.pool_hosts()
 
-	t.check("every System is listed for deliberate selection", all_sys.size() == 3)
-	t.check("the intro System is held out of the random pool", pool_sys.size() == 2)
-	t.check("every HOST is listed", all_hst.size() == 5)
-	t.check("THRESHOLD is held out of the random pool", pool_hst.size() == 4)
+	# Beta 0.5 §3: 11 Systems (10 pooled, DOORMAN held out); 10 HOSTs (9
+	# pooled, THRESHOLD held out).
+	t.check("every System is listed for deliberate selection", all_sys.size() == 11)
+	t.check("the intro System is held out of the random pool", pool_sys.size() == 10)
+	t.check("every HOST is listed", all_hst.size() == 10)
+	t.check("THRESHOLD is held out of the random pool", pool_hst.size() == 9)
 
 	# `in_pool` governs what may be ROLLED, not what may be chosen. If these two
 	# ever coincide the distinction has been lost.

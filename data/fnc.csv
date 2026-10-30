@@ -21,3 +21,21 @@ FNC_019,REBOOT,0,EFFECT_SHAKE,supports ODANSHAY's passive,,,,,,,,,1:1:0:0
 FNC_020,CODESHATTER,0,EFFECT_ATTACK,supports ODANSHAY's passive,,,,,70,,,,
 FNC_021,LOGICBOMBEXPLODE,0,EFFECT_ATTACK,supports NEHBOCYET's passive,,,,,40,,,,
 FNC_022,BRAINSCRAMBLE,0,EFFECT_ATTACK,supports ECHOFALL's passive,,,,,30,,,,
+FNC_023,VOLATILE,6,EFFECT_MINE,"countdown tile does nothing when it expires but deals damage to the non-controller combatant when removed, params determine removal required",4,4,,,20,,,,1:1:0:0:0:0
+FNC_024,TUSK,10,EFFECT_ATTACK,MAMMOTH main attack: direct LINK damage,,,,,28,,,,
+FNC_025,STOMP,8,EFFECT_ATTACK:EFFECT_BOMB,MAMMOTH: low direct damage then instant board explosion,1,,AREA_SQUARE_3X3,,12,,,,0:0:1
+FNC_026,THICKHIDE,9,EFFECT_SHIELD,MAMMOTH: single large shield,1,,,6,,,,,
+FNC_027,FORAGE,7,FNC_028:FNC_029,"MAMMOTH board feed: 3 packets to favored color RED, 3 to favored shape SQU; chained FNC costs ignored",,,,,,,,,
+FNC_028,FORAGECOLOR,0,EFFECT_TRANSFORM,FORAGE payload: 3 random packets -> RED,3,,,,,,ALL,RED,0:1
+FNC_029,FORAGESHAPE,0,EFFECT_TRANSFORM,FORAGE payload: 3 random packets -> SQU,3,,,,,,ALL,SQU,0:1
+FNC_030,SHELL,11,EFFECT_BOMB,ARCHON artillery: single long-fuse large bomb; telegraph the big hit,1,4,AREA_SQUARE_5X5,,,,,,0:0:1
+FNC_031,SIGHT,6,EFFECT_TRANSFORM,ARCHON: 4 packets -> YEL (feeds ATTACKER / shell board),4,,,,,,ALL,YEL,0:1
+FNC_032,SPOTTER,5,EFFECT_LINESLICE,"ARCHON: slice a row for pressure while the shell ticks; damage, no charge",1,,,,,,,,0:1:0:0:1
+FNC_033,RAGE,8,EFFECT_ATTACK,HARRIER berserker spike,,,,,22,,,,
+FNC_034,FRENZY,7,EFFECT_BUFF,HARRIER: 2 packet buffs mag 4 cd 1 — builds match pressure,2,1,,4,,,,,
+FNC_035,PEPPER,6,EFFECT_BOMB,GNAT rush: many tiny instant bombs,4,,AREA_CARDINAL_1,,,,,,0:0:1
+FNC_036,DRIP,5,EFFECT_ATTACK,LEECH attrition: small LINK chip,,,,,10,,,,
+FNC_037,SMOG,7,EFFECT_TRANSFORM,SMOGGER: 5 packets -> NEU (pollute usable syncs),5,,,,,,ALL,NEU,0:0
+FNC_038,STATIC,6,EFFECT_SHAKE,"STATICIAN: randomize non-specials, strip enemy overlays, allow sync, cascades",,,,,,,,,1:2:1:1
+FNC_039,BLOOM,6,EFFECT_TRANSFORM,ORCHID: 4 packets -> MAG (mutual resource; orchid loadout exploits MAG),4,,,,,,ALL,MAG,0:1
+FNC_040,NECTAR,9,EFFECT_BOMB,ORCHID payoff bomb after bloom,2,2,AREA_SQUARE_3X3,,,,,,0:0:0

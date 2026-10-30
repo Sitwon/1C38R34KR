@@ -127,7 +127,7 @@ class Passive extends RefCounted:
 class SideMetrics extends RefCounted:
 	var total_damage := 0
 
-	# The seven disjoint causal buckets.
+	# The eight disjoint causal buckets.
 	var match_damage := 0.0  ## BASE Sync damage only — zero under Reinforced Connection
 	var attacker_damage := 0.0
 	var bomb_damage := 0.0
@@ -135,6 +135,12 @@ class SideMetrics extends RefCounted:
 	var transform_damage := 0.0  ## Syncs an EFFECT_TRANSFORM created
 	var passive_damage := 0.0
 	var buff_damage_added := 0.0
+	var mine_damage := 0.0  ## a Mine's trap damage (beta 0.5) — never Bomb or ATTACK
+
+	## Environmental PASSIVE damage this side TOOK (PSV_SELF_DAMAGE). Dealt by
+	## no combatant, so it is outside `total_damage` and every bucket above —
+	## which is why those still sum to `total_damage` exactly.
+	var environment_damage_taken := 0
 
 	## Cross-cutting: overlaps the buckets above and does NOT sum with them.
 	var cascade_damage := 0.0
@@ -171,6 +177,7 @@ class SideMetrics extends RefCounted:
 			"bomb_damage": bomb_damage, "lineslice_damage": lineslice_damage,
 			"transform_damage": transform_damage, "passive_damage": passive_damage,
 			"buff_damage_added": buff_damage_added, "cascade_damage": cascade_damage,
+			"mine_damage": mine_damage, "environment_damage_taken": environment_damage_taken,
 			"match_damage_color": match_damage_color, "match_damage_shape": match_damage_shape,
 			"crit_extra": crit_extra, "largest_hit": largest_hit,
 			"deepest_cascade": deepest_cascade, "tiles_destroyed": tiles_destroyed,
@@ -190,6 +197,8 @@ class SideMetrics extends RefCounted:
 		s.passive_damage = float(d.get("passive_damage", 0.0))
 		s.buff_damage_added = float(d.get("buff_damage_added", 0.0))
 		s.cascade_damage = float(d.get("cascade_damage", 0.0))
+		s.mine_damage = float(d.get("mine_damage", 0.0))
+		s.environment_damage_taken = int(d.get("environment_damage_taken", 0))
 		s.match_damage_color = float(d.get("match_damage_color", 0.0))
 		s.match_damage_shape = float(d.get("match_damage_shape", 0.0))
 		s.crit_extra = float(d.get("crit_extra", 0.0))
@@ -469,8 +478,11 @@ static func _consume_one(m: Battle, ev: Dictionary) -> void:
 ## Connection the whole causal amount is PASSIVE damage and base Sync damage
 ## records as a clean zero — which is the rule being reported, not a bug.
 static func _consume_damage(m: Battle, ev: Dictionary) -> void:
-	var sm := m.side(Types.opponent_of(int(ev["target"])))
 	var amount := int(ev["amount"])
+	if int(ev["source"]) == Types.DamageSource.PASSIVE:
+		m.side(int(ev["target"])).environment_damage_taken += amount
+		return
+	var sm := m.side(Types.opponent_of(int(ev["target"])))
 	var bonus := _num(ev, "buff_bonus")
 	var passive := _num(ev, "passive_raw")
 	var causal := float(amount) - bonus - passive
@@ -496,6 +508,9 @@ static func _consume_damage(m: Battle, ev: Dictionary) -> void:
 			_credit(sm, program_id, causal)
 		Types.DamageSource.TRANSFORM:
 			sm.transform_damage += causal
+			_credit(sm, program_id, causal)
+		Types.DamageSource.MINE:
+			sm.mine_damage += causal
 			_credit(sm, program_id, causal)
 		_:
 			sm.bomb_damage += causal

@@ -20,6 +20,7 @@ const SHIELD := "EFFECT_SHIELD"
 const SHAKE := "EFFECT_SHAKE"
 const LINESLICE := "EFFECT_LINESLICE"
 const TRANSFORM := "EFFECT_TRANSFORM"
+const MINE := "EFFECT_MINE"
 
 ## The discrete Function-CSV parameter columns a contract can claim.
 const PARAM_NAMES: Array[String] = ["quantity", "countdown", "areaPattern", "magnitude", "damage"]
@@ -75,6 +76,25 @@ const SHAKE_TUPLE: Array[Dictionary] = [
 const TRANSFORM_TUPLE: Array[Dictionary] = [
 	{"name": "targeting", "min": 0, "max": 1},
 	{"name": "specialPacketTreatment", "min": 0, "max": 2},
+]
+
+
+## The six Mine trigger flags, each 0 (no) / 1 (yes). Unlike every other
+## tuple here, 1 means YES — the Mine param notes define it that way, and the
+## names say which way round each one reads.
+##   slicedByOwner : slicedByOpponent : destroyedByOwner : destroyedByOpponent
+##   : destroyedByHost : expires
+const MINE_TUPLE: Array[Dictionary] = [
+	{"name": "slicedByOwner", "min": 0, "max": 1},
+	{"name": "slicedByOpponent", "min": 0, "max": 1},
+	{"name": "destroyedByOwner", "min": 0, "max": 1},
+	{"name": "destroyedByOpponent", "min": 0, "max": 1},
+	{"name": "destroyedByHost", "min": 0, "max": 1},
+	{"name": "expires", "min": 0, "max": 1},
+]
+const MINE_FLAG_NAMES: Array[String] = [
+	"slicedByOwner", "slicedByOpponent", "destroyedByOwner",
+	"destroyedByOpponent", "destroyedByHost", "expires",
 ]
 
 
@@ -191,5 +211,19 @@ static func _build() -> void:
 			"target_kind": Types.TargetKind.PACKET,
 			"tuple": TRANSFORM_TUPLE,
 			"axes": AXIS_NAMES,
+		},
+		# A controller-owned countdown trap on an ordinary Packet (beta 0.5 §6).
+		# `countdown` and `damage` are required but may be 0: a zero countdown
+		# resolves the Mine's expiry at once, and zero damage is a legal if
+		# toothless authoring. `allow_zero` is how a contract says so.
+		MINE: {
+			"id": MINE,
+			"required": ["quantity", "countdown", "damage"],
+			"optional": [],
+			"allow_zero": ["countdown", "damage"],
+			"targeted": false,
+			"target_kind": Types.TargetKind.NONE,
+			"tuple": MINE_TUPLE,
+			"axes": [],
 		},
 	}

@@ -14,6 +14,11 @@ class TileGen extends RefCounted:
 	var rng: Rng
 	var next_id := 0
 
+	## PSV_PACKET_DROP_RATE relative weights (beta 0.5 §8.3). Empty means
+	## uniform, which keeps the original `int_below` draw untouched.
+	var color_weights: Array[int] = []
+	var shape_weights: Array[int] = []
+
 	func _init(r: Rng, start_id: int) -> void:
 		rng = r
 		next_id = start_id
@@ -29,9 +34,26 @@ static func random_tile(gen: TileGen) -> Tile:
 	gen.next_id += 1
 	if gen.rng.next() < Constants.NEUTRAL_TILE_DROP_RATE:
 		return Tile.neutral(id)
-	var c := gen.rng.int_below(Constants.COLOR_COUNT)
-	var s := gen.rng.int_below(Constants.SHAPE_COUNT)
+	var c := _axis_draw(gen.rng, Constants.COLOR_COUNT, gen.color_weights)
+	var s := _axis_draw(gen.rng, Constants.SHAPE_COUNT, gen.shape_weights)
 	return Tile.standard(id, c, s)
+
+
+## One axis value. Unweighted is exactly the original `int_below`; weighted is
+## ONE draw against the cumulative weights — the same RNG consumption, no
+## rejection loop, and no float accumulation (weights are integers).
+static func _axis_draw(rng: Rng, n: int, weights: Array[int]) -> int:
+	if weights.is_empty():
+		return rng.int_below(n)
+	var total := 0
+	for w in weights:
+		total += w
+	var r := int(floor(rng.next() * total))
+	for i in weights.size():
+		r -= weights[i]
+		if r < 0:
+			return i
+	return weights.size() - 1
 
 
 static func empty_board() -> Array:

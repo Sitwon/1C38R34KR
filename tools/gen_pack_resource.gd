@@ -56,7 +56,9 @@ const SINGLES := {
 ## a special's type index are gameplay identity, so an array built in the wrong
 ## order renders the right art against the wrong state.
 const SHAPES := ["circle", "square", "triangle", "diamond", "star", "cross"]
-const SPECIALS := ["bomb", "buff", "shield", "override", "capacitor", "logic_bomb"]
+## The renderer's own list, not a copy of it: a hand-kept copy of these names
+## is how beta 0.4 nearly shipped new types drawn as Bombs.
+const SPECIALS := Resolve.SPECIAL_TYPE_NAMES
 
 
 func _initialize() -> void:

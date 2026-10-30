@@ -46,7 +46,7 @@ func has_special() -> bool:
 	return special != null
 
 
-## A board overlay: bomb, buff, shield, or Boss Override.
+## A board overlay: bomb, buff, shield, Mine, or a Boss special.
 ##
 ## An armed overlay carries BOTH its remaining countdown and the Effect it will
 ## deliver, plus the parameters resolved when it was armed. That is what makes
@@ -54,10 +54,11 @@ func has_special() -> bool:
 ## by construction — a Function edited between arming and delivery cannot reach
 ## back and alter what is already in flight.
 class Special extends RefCounted:
-	## Beta 0.4 appends CAPACITOR and LOGIC_BOMB. New members go on the END:
-	## the ordinal is the key into `overlay_mark`/`overlay_ring` in every
-	## graphics pack, so inserting one would silently repoint existing art.
-	enum Type { BOMB = 0, BUFF, SHIELD, OVERRIDE, CAPACITOR, LOGIC_BOMB }
+	## Beta 0.4 appends CAPACITOR and LOGIC_BOMB; beta 0.5 appends MINE. New
+	## members go on the END: the ordinal is the key into `overlay_mark`/
+	## `overlay_ring` in every graphics pack, so inserting one would silently
+	## repoint existing art.
+	enum Type { BOMB = 0, BUFF, SHIELD, OVERRIDE, CAPACITOR, LOGIC_BOMB, MINE }
 
 	var type := Type.BOMB
 	var owner := Types.Side.PLAYER
@@ -80,6 +81,12 @@ class Special extends RefCounted:
 	var deal_damage: int = -1  ## bombs only
 	var gain_charge: int = -1  ## bombs only
 
+	## Mines only. The authored damage, and the six authored trigger flags in
+	## `Effects.MINE_FLAG_NAMES` order, stamped at placement like every other
+	## armed parameter so an edited Function cannot reach an armed Mine.
+	var damage: int = -1
+	var triggers: Array[int] = []
+
 	## Global placement order. Armed overlays tick oldest-first, so this is
 	## gameplay-affecting rather than bookkeeping.
 	var seq := 0
@@ -99,5 +106,7 @@ class Special extends RefCounted:
 		s.fn_id = fn_id
 		s.deal_damage = deal_damage
 		s.gain_charge = gain_charge
+		s.damage = damage
+		s.triggers = triggers.duplicate()
 		s.seq = seq
 		return s

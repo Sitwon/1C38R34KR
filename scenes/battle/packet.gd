@@ -195,6 +195,17 @@ func _draw_overlay(rect: Rect2, special: Dictionary) -> void:
 	# An ARMED overlay shows its remaining countdown whatever it will eventually
 	# deliver. That distinction is load-bearing: a pending Buff contributes
 	# nothing until it delivers, and the board must not imply otherwise.
+	# Beta 0.5 §7 — a Mine is ALWAYS armed, so the rule below would draw it as
+	# a bare countdown, indistinguishable from an armed Bomb. Its mark is a
+	# frame authored across the full overlay span and drawn AROUND the badge,
+	# leaving the centre to the digits: the badge fill still says whose it is,
+	# the digits how long, and the spiked frame that it is a Mine.
+	if type_index == Tile.Special.Type.MINE:
+		draw_texture_rect(Graphics.mark(type_index), area, false, PacketStyle.OVERLAY_TINT[type_index])
+		if special.has("countdown"):
+			_draw_countdown(centre, badge_r, countdown, mark)
+		return
+
 	if special.has("countdown") and countdown > 0:
 		_draw_countdown(centre, badge_r, countdown, mark)
 		return
