@@ -28,7 +28,9 @@ const LEVEL_NAMES: Array[String] = ["BASIC", "VERBOSE", "COMPLETE"]
 ## Versioned independently of the save schema: a logging change must not
 ## invalidate saves, and a save change must not silently reinterpret old logs.
 const LOGGING_SCHEMA_VERSION := 1
-const METRICS_SCHEMA_VERSION := 2  ## 2: beta 0.5 Mine and environmental-damage buckets
+## 2: beta 0.5 Mine and environmental-damage buckets.
+## 3: beta 0.6 heal, health-cost and direct-charge aggregates.
+const METRICS_SCHEMA_VERSION := 3
 
 ## In-memory caps. Retention on disk is governed first by `LogStore`'s byte
 ## budget and second by these; both exist because either alone fails — a byte
@@ -228,6 +230,21 @@ func _consume_one(state: GameState, ev: Dictionary) -> void:
 					rec[key] = ev[key]
 			_push(state.turn, "PASSIVE", "passive", rec)
 
+		# Beta 0.6: the three non-damage health/charge Effects are rare and
+		# exactly what balance work asks about, so each is a high-value record
+		# at every level, carrying the source Function and identity.
+		Types.EVT.HEAL:
+			_act("%s healed %d of %d (%d wasted)" % [_who(ev["side"]), int(ev["applied"]), int(ev["attempted"]), int(ev["wasted"])])
+			_push(state.turn, "HEAL", "heal", _health_record(ev, ["before", "attempted", "applied", "wasted", "after"]))
+
+		Types.EVT.HEALTH_COST:
+			_act("%s paid %d health%s" % [_who(ev["side"]), int(ev["cost"]), " — lethal" if bool(ev["lethal"]) else ""])
+			_push(state.turn, "HEALTH_COST", "health_cost", _health_record(ev, ["before", "cost", "after", "lethal", "aborted_ops"]))
+
+		Types.EVT.DIRECT_CHARGE:
+			_act("%s direct charge +%d (%d discarded)" % [_who(ev["side"]), int(ev["accepted"]), int(ev["discarded"])])
+			_push(state.turn, "DIRECT_CHARGE", "direct_charge", _health_record(ev, ["scope", "offered", "accepted", "discarded", "targets"]))
+
 		Types.EVT.SHAKE:
 			_act("%s EFFECT_SHAKE %s" % [
 				_who(ev["side"]),
@@ -263,6 +280,18 @@ func _consume_one(state: GameState, ev: Dictionary) -> void:
 
 		Types.EVT.HINT_SHOWN:
 			_current["hint_shown"] = true
+
+
+func _health_record(ev: Dictionary, keys: Array) -> Dictionary:
+	var rec := {
+		"side": ev["side"], "owner_kind": ev["owner_kind"],
+		"program_id": ev["program_id"], "fn_id": ev["fn_id"],
+	}
+	for k in keys:
+		rec[k] = ev[k]
+	if ev.has("cause"):
+		rec["cause"] = ev["cause"]
+	return rec
 
 
 func _damage_bucket(source: int) -> String:

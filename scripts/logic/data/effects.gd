@@ -21,6 +21,9 @@ const SHAKE := "EFFECT_SHAKE"
 const LINESLICE := "EFFECT_LINESLICE"
 const TRANSFORM := "EFFECT_TRANSFORM"
 const MINE := "EFFECT_MINE"
+const HEAL := "EFFECT_HEAL"
+const SELF_DAMAGE := "EFFECT_SELF_DAMAGE"
+const CHARGE := "EFFECT_CHARGE"
 
 ## The discrete Function-CSV parameter columns a contract can claim.
 const PARAM_NAMES: Array[String] = ["quantity", "countdown", "areaPattern", "magnitude", "damage"]
@@ -93,6 +96,12 @@ const MINE_TUPLE: Array[Dictionary] = [
 	{"name": "destroyedByHost", "min": 0, "max": 1},
 	{"name": "expires", "min": 0, "max": 1},
 ]
+## scope — an OPTION LIST, not a flag (D-067): 0 SELF, 1 OTHER_PROGRAMS,
+## 2 ALL_PROGRAMS. TARGETED_PROGRAM is not authored and so does not exist.
+const CHARGE_TUPLE: Array[Dictionary] = [
+	{"name": "scope", "min": 0, "max": 2},
+]
+
 const MINE_FLAG_NAMES: Array[String] = [
 	"slicedByOwner", "slicedByOpponent", "destroyedByOwner",
 	"destroyedByOpponent", "destroyedByHost", "expires",
@@ -225,6 +234,43 @@ static func _build() -> void:
 			"targeted": false,
 			"target_kind": Types.TargetKind.NONE,
 			"tuple": MINE_TUPLE,
+			"axes": [],
+		},
+		# Owner-side restoration capped at the battle maximum (beta 0.6 §9).
+		# Zero is legal and simply heals nothing.
+		HEAL: {
+			"id": HEAL,
+			"required": ["magnitude"],
+			"optional": [],
+			"allow_zero": ["magnitude"],
+			"targeted": false,
+			"target_kind": Types.TargetKind.NONE,
+			"tuple": [],
+			"axes": [],
+		},
+		# A health COST paid by the owner (beta 0.6 §10) — not damage, so it
+		# reads `damage` only as the authored amount and never enters the
+		# damage funnel.
+		SELF_DAMAGE: {
+			"id": SELF_DAMAGE,
+			"required": ["damage"],
+			"optional": [],
+			"allow_zero": ["damage"],
+			"targeted": false,
+			"target_kind": Types.TargetKind.NONE,
+			"tuple": [],
+			"axes": [],
+		},
+		# Direct charge to the owner's active Programs (beta 0.6 §11): offered
+		# per target, capped per target, excess discarded.
+		CHARGE: {
+			"id": CHARGE,
+			"required": ["magnitude"],
+			"optional": [],
+			"allow_zero": ["magnitude"],
+			"targeted": false,
+			"target_kind": Types.TargetKind.NONE,
+			"tuple": CHARGE_TUPLE,
 			"axes": [],
 		},
 	}

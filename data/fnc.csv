@@ -39,3 +39,30 @@ FNC_037,SMOG,7,EFFECT_TRANSFORM,SMOGGER: 5 packets -> NEU (pollute usable syncs)
 FNC_038,STATIC,6,EFFECT_SHAKE,"STATICIAN: randomize non-specials, strip enemy overlays, allow sync, cascades",,,,,,,,,1:2:1:1
 FNC_039,BLOOM,6,EFFECT_TRANSFORM,ORCHID: 4 packets -> MAG (mutual resource; orchid loadout exploits MAG),4,,,,,,ALL,MAG,0:1
 FNC_040,NECTAR,9,EFFECT_BOMB,ORCHID payoff bomb after bloom,2,2,AREA_SQUARE_3X3,,,,,,0:1:1
+FNC_041,MEND,6,EFFECT_HEAL,VITRA heal,,,,25,,,,,
+FNC_042,AEGIS,7,EFFECT_SHIELD,VITRA shield,2,,,3,,,,,
+FNC_043,SALVE,8,FNC_044:FNC_045,VITRA: heal then small buff; chained FNC costs ignored,,,,,,,,,
+FNC_044,SALVEHEAL,0,EFFECT_HEAL,SALVE payload: heal owner LINK,,,,12,,,,,
+FNC_045,SALVEBUFF,0,EFFECT_BUFF,SALVE payload: small buff,1,,,3,,,,,
+FNC_046,OVERDRAW,4,FNC_047:FNC_048,RAZE: pay LINK for strong buffs; chained FNC costs ignored,,,,,,,,,
+FNC_047,OVERDRAWCOST,0,EFFECT_SELF_DAMAGE,OVERDRAW payload: LINK cost (bypasses shield),,,,,12,,,,
+FNC_048,OVERDRAWBUFF,0,EFFECT_BUFF,OVERDRAW payload: strong buffs,2,1,,5,,,,,
+FNC_049,BLOODSPIKE,5,FNC_050:FNC_051,RAZE: pay LINK for big direct hit; chained FNC costs ignored,,,,,,,,,
+FNC_050,SPIKECOST,0,EFFECT_SELF_DAMAGE,BLOODSPIKE payload: LINK cost (bypasses shield),,,,,15,,,,
+FNC_051,SPIKEHIT,0,EFFECT_ATTACK,BLOODSPIKE payload: big direct hit,,,,,40,,,,
+FNC_052,FLARE,6,EFFECT_BOMB,RAZE pressure bombs (no self-damage; aggression closer),2,1,AREA_SQUARE_3X3,,,,,,0:1:0
+FNC_053,SEEDMINE,6,EFFECT_MINE,NEEDLE: mines fire when sliced,3,3,,,18,,,,1:1:0:0:0:0
+FNC_054,TRIPWIRE,7,EFFECT_MINE,"NEEDLE: mines fire when destroyed (explosive/4-match/special), not when sliced - different decision than SEEDMINE",2,5,,,28,,,,0:0:1:1:0:0
+FNC_055,STAIN,5,EFFECT_TRANSFORM,NEEDLE: paint GRE to feed SEEDMINE charge color,4,,,,,,ALL,GRE,0:1
+FNC_056,TRANSFUSE,5,FNC_057:FNC_058,BLEEDLINE deck active: pay LINK then charge programs; chained FNC costs ignored,,,,,,Y,,,
+FNC_057,TRANSFUSECOST,0,EFFECT_SELF_DAMAGE,TRANSFUSE payload: LINK cost (bypasses shield; lethal aborts FNC_058),,,,,20,,,,
+FNC_058,TRANSFUSECHARGE,0,EFFECT_CHARGE,OTHER_PROGRAMS +4 each,,,,4,,,,,1
+FNC_059,LANCET,7,EFFECT_ATTACK,BLEEDLINE: tempo direct damage,,,,,22,,,,
+FNC_060,CLOT,6,EFFECT_SHIELD,BLEEDLINE: single shield,1,,,4,,,,,
+FNC_061,SURGE,6,EFFECT_BUFF,BLEEDLINE: short buffs,2,1,,4,,,,,
+FNC_062,REINFORCE,4,EFFECT_SHIELD,BASTION deck active: burst shields,3,,,2,,Y,,,
+FNC_063,MENDKIT,5,EFFECT_HEAL,BASTION: heal owner LINK,,,,18,,,,,
+FNC_064,BULWARK,8,EFFECT_SHIELD,BASTION: heavy shields,2,,,4,,,,,
+FNC_065,SPARK,3,EFFECT_BOMB,"FUSEBOX deck active: small instant bomb that damages+charges (countdown 0 = immediate, per PSV_010 convention)",1,0,AREA_CARDINAL_1,,,Y,,,0:1:1
+FNC_066,CHARGEPACK,7,EFFECT_BOMB,bombs that grant charge on slice,2,2,AREA_SQUARE_3X3,,,,,,0:1:1
+FNC_067,LONGFUSE,9,EFFECT_BOMB,FUSEBOX: single long-fuse big bomb,1,4,AREA_SQUARE_5X5,,,,,,0:1:0

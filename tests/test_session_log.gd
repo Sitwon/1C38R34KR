@@ -141,7 +141,7 @@ func _test_quick_random(t: TestCase) -> void:
 	LogStore.clear()
 	var rng := Rng.new(4242)
 	var rolled := Session.random_quick_match_setup(rng)
-	SessionLog.quick_random_rolled(4242, 777, rolled["system_id"], rolled["host_id"], rolled["build"])
+	SessionLog.quick_random_rolled(4242, 777, rolled["system_id"], rolled["host_id"], rolled["build"], rolled["hacker_id"], rolled["deck_id"])
 
 	var records := _of(_read(SessionLog.STREAM), SessionLog.QUICK_RANDOM_ROLLED)
 	t.eq("the roll is recorded", records.size(), 1)
@@ -158,6 +158,8 @@ func _test_quick_random(t: TestCase) -> void:
 	t.eq("System", str(records[0]["system_id"]), str(rolled["system_id"]))
 	t.eq("HOST", str(records[0]["host_id"]), str(rolled["host_id"]))
 	t.eq("build", records[0]["build"], rolled["build"])
+	t.eq("Hacker (beta 0.6)", str(records[0]["hacker_id"]), str(rolled["hacker_id"]))
+	t.eq("Deck (beta 0.6)", str(records[0]["deck_id"]), str(rolled["deck_id"]))
 
 
 func _read(stream: String) -> Array:

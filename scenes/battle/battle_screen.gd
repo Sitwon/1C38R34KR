@@ -733,6 +733,22 @@ func _play_one(ev: Dictionary) -> void:
 				"amount": int(ev.get("amount", 0)), "target": _who(ev.get("target", 0)),
 			}))
 			await _pause(0.24 / speed)
+		# Beta 0.6 — the three non-damage health/charge Effects. The logic layer
+		# already writes their message line, so these add only the visible
+		# change: the bar or the charge pools move NOW, not on the next event.
+		Types.EVT.HEAL:
+			_refresh_bars()
+			_float_number(int(ev.get("side", 0)), "+%d" % int(ev.get("applied", 0)), PacketStyle.HEAL, int(ev.get("applied", 0)) > 0)
+			await _pause(0.24 / speed)
+		Types.EVT.HEALTH_COST:
+			_refresh_bars()
+			_float_damage(int(ev.get("side", 0)), int(ev.get("cost", 0)))
+			await _pause(0.24 / speed)
+		Types.EVT.DIRECT_CHARGE:
+			_refresh_programs()
+			for tg in (ev.get("targets", []) as Array):
+				_flash_unit({"side": ev.get("side", 0), "owner_kind": Types.OwnerKind.PROGRAM, "program_id": tg["program_id"]})
+			await _pause(0.30 / speed)
 		Types.EVT.SHIELD:
 			_refresh_bars()
 			_sub_log(Text.format(Text.UI_STATUS_TEXT, "GAME_UI_MSG_SHIELD_ABSORBED", {
@@ -819,12 +835,16 @@ func _flash_unit(ev: Dictionary) -> void:
 ## or how big each was. The scrollback records them, but the floater is what
 ## makes the sequence legible while it happens.
 func _float_damage(target_side: int, amount: int) -> void:
-	if amount <= 0:
+	_float_number(target_side, "-%d" % amount, PacketStyle.DAMAGE, amount > 0)
+
+
+func _float_number(target_side: int, text: String, color: Color, show := true) -> void:
+	if not show:
 		return
 	var anchor: Control = _hacker_box if target_side == Types.Side.PLAYER else _system_box
 	var tag := Label.new()
-	tag.text = "-%d" % amount
-	tag.add_theme_color_override("font_color", PacketStyle.DAMAGE)
+	tag.text = text
+	tag.add_theme_color_override("font_color", color)
 	tag.add_theme_font_size_override("font_size", UiTheme.px(26))
 	tag.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	tag.position = anchor.global_position + Vector2(anchor.size.x * 0.5, anchor.size.y * 0.5)

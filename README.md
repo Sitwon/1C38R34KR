@@ -10,66 +10,66 @@ intended — see [The differential gate](#the-differential-gate).
 
 ## Status
 
-**`beta-0.5.0`: the first ordinary-content expansion. The roster roughly
-doubles, and one new Effect and five new PASSIVE mechanics run on the seams
-that were already there.**
+**`beta-0.6.0`: Content Pass 2. The initial catalogue is complete on both
+sides: four Hackers, four Decks, and four Bosses with authored Program
+loadouts, carried by three new Effects.**
 
-0.4.0 proved the framework could carry Bosses. 0.5.0 asks whether it can carry
-breadth: eight new Systems with eighteen new Programs and Functions, five new
-HOSTs and six new UPGRADEs, all authored in a workbook that an agent edited for
-the first time. It can.
+0.5.0 proved the framework could carry System breadth. 0.6.0 does the same for
+the player: VITRA (sustain), RAZE (LINK as a resource), NEEDLE (two Mine
+trigger profiles) and three new Decks join CR45H and AGIMA. All sixteen
+pairings build, play and complete a Run.
 
-- **`EFFECT_MINE`** is the one new Effect. It is a countdown special with six
-  trigger flags, classified at the moment it is removed.
-- **The new PASSIVEs** are countdown adjust, ability-damage rate, packet drop
-  rate, environmental self-damage and the strong-slice bonus, plus an `ALL`
-  selector for match damage.
-- **Each one is a calculation seam**, not a branch on a name.
+- **`EFFECT_HEAL`** restores the owner up to its battle maximum, and records
+  what the cap wasted (D-068).
+- **`EFFECT_SELF_DAMAGE`** is a health **cost**, not damage. It bypasses
+  Shield and every modifier, credits no one, and a lethal cost ends the
+  battle before the rest of the chain (D-069).
+- **`EFFECT_CHARGE`** adds charge to active Programs: SELF, OTHER or ALL,
+  capped per target, with the excess discarded rather than routed (D-070).
+  TRANSFUSE fills Programs that can fire in the same window.
+- **Quick Match and Boss Attack** now ask for a Hacker and a Deck. Random
+  Quick Match rolls them (D-073).
 
-| Content | Count | Pool |
+| Content | Count | Notes |
 | --- | ---: | --- |
-| Systems | 11 | 10 random; DOORMAN fixed for Battle 1 |
-| HOSTs | 10 | 9 random; THRESHOLD fixed for Battle 1 |
-| UPGRADEs | 10 | all in the reward pool |
-| System Programs | 26 | |
-| Functions | 40 | |
-| PASSIVEs | 20 | PSV_018–020 authored, unreferenced, synthetically covered |
+| Hackers | 4 | CR45H, VITRA, RAZE, NEEDLE |
+| Decks | 4 | AGIMA, BLEEDLINE, BASTION, FUSEBOX |
+| Hacker/Deck Programs | 24 | each in exactly one Program set |
+| Bosses | 4 | authored loadouts and strong axes replace the placeholders |
+| Systems / HOSTs / UPGRADEs | 11 / 10 / 10 | unchanged |
+| System Programs | 26 | unchanged |
+| Functions | 67 | +27 |
+| PASSIVEs | 20 | unchanged |
 
 | Phase | State |
 | --- | --- |
-| A — inspect and diff | ✅ ten questions resolved with the director before build |
-| B — content and text ingest | ✅ through the real exporter; 66 `text_content` rows added |
-| C — Mine, multi-Effect payloads, Transform to NEU, Mine art in six packs | ✅ |
-| D — PASSIVE capability | ✅ |
-| E — System/HOST/UPGRADE integration | ✅ |
-| F — regression and content sweep | ✅ one real defect found and fixed |
-| G — device | ✅ S25 (tablet battery flat); two defects found and fixed |
-| H — closeout | ✅ see `staging/1c38r34kr-beta-0.5.0-initial-content-expansion-handback.md` |
+| A — workbook audit | ✅ mechanical diff matched §2 cell for cell; no coding-agent edits |
+| B — HEAL, SELF_DAMAGE, CHARGE | ✅ |
+| C — content import | ✅ |
+| D — logging, metrics, save proof | ✅ metrics schema 3, save schema 6 |
+| E — smoke and integration | ✅ |
+| F — DEEPSCAN | ✅ see the gates |
+| G — device | ✅ tablet; S25 see the gates |
+| H — closeout | ✅ see `staging/1c38r34kr-beta-0.6.0-content-pass-2-handback.md` |
 
 | Gate | State |
 | --- | --- |
-| Headless logic tests | ✅ 4,096 passing across 26 suites |
-| Focused 0.5 coverage | ✅ `test_content_expansion.gd`, every §18 item |
-| Content smoke matrix | ✅ 244 battles, every new Function fired, every HOST and UPGRADE fired, 20/20 Runs |
-| Workbook round-trip | ✅ `export_workbook.py --check` clean against the working workbook |
+| Headless logic tests | ✅ 4,885 passing across 27 suites |
+| Focused 0.6 coverage | ✅ `test_content_pass_2.gd`, every §19 item |
+| Content Pass 1 smoke | ✅ matrix byte-identical to 0.5; only the Boss-ending Run walks moved |
+| Content Pass 2 smoke | ✅ 253 battles: 16 pairings, every new Function, all 16 Boss placements, 16/16 Run walks |
+| Workbook round-trip | ✅ `export_workbook.py --check` clean against the unsuffixed workbook |
 | Asset bundles | ✅ 61 assets + palette in each of six packs |
 | Texture imports | ✅ 372/372 correct |
 | Battle parity, legacy data (fast) | ✅ 150/150 |
 | DEEPSCAN, legacy data | ✅ 5,250/5,250, no divergence |
-| Android export | ✅ clean; CSVs and Mine art verified inside the APK |
-| Tablet device pass | ➖ not run, battery flat; replaced by the S25 pass |
-| S25 device pass | ✅ VOLATILE placed, ticked and fired as specified; choosers fit and scroll; clean log |
+| Android export | ✅ clean; both ABI slices |
+| Tablet device pass | ✅ choosers, six-candidate Build, HEAL, costs, TRANSFUSE, NEEDLE Mines, SPARK; clean log |
+| S25 device pass | ✅ choosers and Build fit at 1080×2340; TRANSFUSE, same-window fire, costs and SPARK read clearly; clean log; Build buttons clip long names (AN-035) |
 
-**The Alpha oracle has narrowed, not retired.** Live content diverges from the
-Alpha deliberately. The differential now runs against
-`tests/fixtures/legacy_data/`, a frozen copy of the pre-0.5 CSVs, where it
-proves that every shared code path 0.5 touched still matches the Alpha bit for
-bit. The new mechanics are proven by their own tests and by the smoke matrix
-(D-058).
-
-Deliberately **not** in 0.5.0: balance tuning, new Hacker or Deck content, Boss
-changes, a passive DSL or Mine trigger language, final art, and any change to
-Run length or reward rules.
+Deliberately **not** in 0.6.0: balance tuning, new Systems, HOSTs, UPGRADEs,
+PASSIVEs or System Programs, deeper Function chaining, manual DRAIN
+targeting, and art or layout work.
 
 ### Devices
 
@@ -472,7 +472,7 @@ Thirteen CSV datasets are the source of truth, exported from the workbook by
 Godot's translation importer leaves them alone, and `*.csv` is in the export
 filter so the raw files ship inside the APK.
 
-Content is hashed into a **fingerprint** (`ce01939e-fwf` as of beta 0.5) using a JS-compatible
+Content is hashed into a **fingerprint** (`8dc8bc04-mgi` as of beta 0.6) using a JS-compatible
 canonical JSON encoding, so the beta and the alpha agree on the hash for
 identical content. The fingerprint appears on the title screen, in every save,
 and on every battle log record — it is the first question worth asking when a
@@ -483,15 +483,18 @@ rejected rather than restored against different rules than it was made under.
 
 | File | What it is |
 | --- | --- |
-| `staging/1c38r34kr-beta-0.5.0-initial-content-expansion-authorization.md` | the scope and completion standard this build answers to |
-| `staging/1c38r34kr-beta-0.5.0-initial-content-expansion-handback.md` | **the 0.5 close-out**: verdict, deviations, and feedback for the architect |
-| `staging/breach-datastructures-working.xlsx` | the 0.5 authoring workbook (this build only, D-066) |
+| `staging/1c38r34kr-beta-0.5.0-initial-content-expansion-authorization.md` | the beta 0.5 scope |
+| `staging/1c38r34kr-beta-0.5.0-initial-content-expansion-handback.md` | the 0.5 close-out |
+| `staging/1c38r34kr-beta-0.6.0-content-pass-2-authorization.md` | the scope and completion standard this build answers to |
+| `staging/Breach_Beta_0.6_Content_Pass_2_Combined_Handoff.md` | the designer/content handoff behind it |
+| `staging/1c38r34kr-beta-0.6.0-content-pass-2-handback.md` | **the 0.6 close-out**: verdict, deviations, and feedback for the architect |
+| `staging/breach-datastructures.xlsx` | the authoring workbook; `data/*.csv` is exported from it (D-074) |
 | `staging/1c38r34kr-beta-0.3.0-build-authorization.md` | the beta 0.3 scope |
 | `staging/1c38r34kr-beta-0.3.0-authorization-review.md` | the pre-implementation review of it |
 | `staging/1c38r34kr-beta-0.2.0-build-authorization-revised.md` | the previous build's scope |
 | `staging/1c38r34kr-beta-0.2.0-authorization-review.md` | the pre-implementation review of it, and the seven items that needed resolving |
 | `staging/1c38r34kr-beta-0.1.0-build-authorization.md` | the previous build's scope, kept for reference |
-| `staging/decisions.md` | append-only decision log, D-001..D-067 |
+| `staging/decisions.md` | append-only decision log, D-001..D-074 |
 | `staging/port-notes.md` | every place the translation is non-literal, P-001..P-045 |
 | `staging/architect-notes.md` | design items raised during the port that must **not** be built as part of it |
 | `staging/1c38r34kr-beta-0.3.0-port-handback.md` | **the close-out** — what shipped, what the verification caught, and the final diff review |

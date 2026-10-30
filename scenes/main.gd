@@ -60,6 +60,15 @@ var _seed_override := -1
 ## collapsing the two makes a replay silently swap the loadout.
 var _qm_build: Array = []
 
+## The Hacker and Deck the Quick Match or Boss Attack IN PLAY uses (D-073).
+## Chosen on Constructed Quick Match and Boss Attack, rolled on Random.
+var _qm_hacker_id := Content.DEFAULT_HACKER_ID
+var _qm_deck_id := Content.DEFAULT_DECK_ID
+
+## The pair the remembered constructed `_build` was drawn from. A build is only
+## legal for its own pair's inventory, so choosing a different pair resets it.
+var _build_pair := ""
+
 ## The active session. At most one of these is non-null: a Run part-way through
 ## setup, or a committed Run. Both null means Quick Match, which keeps its
 ## selections in the fields above.
@@ -463,8 +472,35 @@ func _show_host_select() -> void:
 
 	var choose := func(id):
 		_host_id = id
-		_show_build()
+		_show_qm_hacker_select()
 	_show_chooser("GAME_UI_HOST_SELECT_HEADING", "GAME_UI_HOST_SELECT_PROMPT", options, choose, _show_system_select)
+
+
+## Constructed Quick Match and Boss Attack pick a Hacker and a Deck (D-073),
+## through the same cards and wording as a Run's setup. `boss_id` is "" for a
+## Quick Match; a Boss Attack carries its Boss through to the start.
+func _show_qm_hacker_select(boss_id := "") -> void:
+	var back := (func(): _show_boss_attack_select()) if boss_id != "" else (func(): _show_host_select())
+	_show_chooser("GAME_UI_HACKER_SELECT_HEADING", "GAME_UI_HACKER_SELECT_PROMPT", _hacker_options(),
+		func(id):
+			_qm_hacker_id = str(id)
+			_show_qm_deck_select(boss_id),
+		back)
+
+
+func _show_qm_deck_select(boss_id := "") -> void:
+	_show_chooser("GAME_UI_DECK_SELECT_HEADING", "GAME_UI_DECK_SELECT_PROMPT", _deck_options(),
+		func(id):
+			_qm_deck_id = str(id)
+			if boss_id != "":
+				_start_boss_attack(boss_id)
+				return
+			var pair := "%s/%s" % [_qm_hacker_id, _qm_deck_id]
+			if pair != _build_pair:
+				_build = Content.default_build(_qm_hacker_id, _qm_deck_id)
+				_build_pair = pair
+			_show_build(),
+		func(): _show_qm_hacker_select(boss_id))
 
 
 ## Select-then-confirm, rather than commit-on-tap.
@@ -543,7 +579,8 @@ func _show_chooser(
 ## which is why it is shown and editable rather than implied.
 func _show_build() -> void:
 	if _build.is_empty():
-		_build = Session.default_build()
+		_build = Content.default_build(_qm_hacker_id, _qm_deck_id)
+		_build_pair = "%s/%s" % [_qm_hacker_id, _qm_deck_id]
 	_fresh_screen()
 	_heading_ref("GAME_UI_BUILD_HEADING")
 	_subheading_ref("GAME_UI_BUILD_PROMPT")
@@ -565,8 +602,8 @@ func _show_build() -> void:
 			_root.add_child(ctx)
 		_divider()
 	else:
-		inventory.append_array(Content.hacker(Content.DEFAULT_HACKER_ID)["portfolio"])
-		inventory.append_array(Content.deck(Content.DEFAULT_DECK_ID)["portfolio"])
+		inventory.append_array(Content.hacker(_qm_hacker_id)["portfolio"])
+		inventory.append_array(Content.deck(_qm_deck_id)["portfolio"])
 
 	# TouchScroll, not ScrollContainer: these regions are wall-to-wall Buttons,
 	# and a Button eats the one-finger drag that would otherwise scroll.
@@ -801,12 +838,12 @@ func _start_battle() -> void:
 func _replay_battle() -> void:
 	if _boss_attack_id != "":
 		_enter_battle(
-			Session.create_boss_attack(_boss_attack_id, _host_id, _gameplay_seed, _qm_build),
+			Session.create_boss_attack(_boss_attack_id, _host_id, _gameplay_seed, _qm_build, {}, true, _qm_hacker_id, _qm_deck_id),
 			_ui(Text.UI_STATUS_TEXT, "GAME_UI_CONTEXT_BOSS_ATTACK"),
 		)
 		return
 	_enter_battle(
-		Session.create_quick_match(_system_id, _host_id, _gameplay_seed, _qm_build, {}, true),
+		Session.create_quick_match(_system_id, _host_id, _gameplay_seed, _qm_build, {}, true, _qm_hacker_id, _qm_deck_id),
 		_ui(Text.UI_STATUS_TEXT, "GAME_UI_CONTEXT_QUICK_MATCH"),
 	)
 
@@ -1195,7 +1232,7 @@ func _show_boss_select() -> void:
 	)
 
 
-func _show_hacker_select() -> void:
+func _hacker_options() -> Array:
 	var options: Array = []
 	for id in Content.active()["hackers"]:
 		var h := Content.hacker(id)
@@ -1210,7 +1247,26 @@ func _show_hacker_select() -> void:
 				],
 			],
 		})
+	return options
 
+
+func _deck_options() -> Array:
+	var options: Array = []
+	for id in Content.active()["decks"]:
+		var d := Content.deck(id)
+		options.append({
+			"id": str(id),
+			"name": "%s [%s]" % [Text.name_of(id), id],
+			"lines": [
+				_ui(Text.UI_STATUS_TEXT, "GAME_UI_CARD_ADD_LINK", {"link": int(d["add_link"])}),
+				Text.format(Text.UI_STATUS_TEXT, "GAME_UI_CARD_FUNCTION", {"function": Text.name_of(str(d["fn"]["id"]))}),
+			],
+		})
+	return options
+
+
+func _show_hacker_select() -> void:
+	var options := _hacker_options()
 	var choose := func(id):
 		var next := _setup.commit_hacker(str(id))
 		if next == null:
@@ -1226,18 +1282,7 @@ func _show_hacker_select() -> void:
 
 
 func _show_deck_select() -> void:
-	var options: Array = []
-	for id in Content.active()["decks"]:
-		var d := Content.deck(id)
-		options.append({
-			"id": str(id),
-			"name": "%s [%s]" % [Text.name_of(id), id],
-			"lines": [
-				_ui(Text.UI_STATUS_TEXT, "GAME_UI_CARD_ADD_LINK", {"link": int(d["add_link"])}),
-				Text.format(Text.UI_STATUS_TEXT, "GAME_UI_CARD_FUNCTION", {"function": Text.name_of(str(d["fn"]["id"]))}),
-			],
-		})
-
+	var options := _deck_options()
 	var choose := func(id):
 		# Committing the Deck completes setup and generates the Battle 1 offers,
 		# which persist immediately — they are state, not a screen.
@@ -1531,7 +1576,8 @@ var _boss_attack_id := ""
 ## §10 — a Boss battle with no Run, no UPGRADEs and no construction screens.
 ##
 ## Reuses the ordinary chooser and the ordinary default build. The only thing
-## this mode adds is a shorter road to a Boss.
+## this mode adds is a shorter road to a Boss. Beta 0.6 (D-073) asks for the
+## Hacker and Deck after the Boss, and still opens no Build screen.
 func _show_boss_attack_select() -> void:
 	_show_chooser(
 		"GAME_UI_BOSS_SELECT_HEADING",
@@ -1539,7 +1585,7 @@ func _show_boss_attack_select() -> void:
 		# last, which is false here and would misdescribe the mode (§11).
 		"GAME_UI_BOSS_ATTACK_PROMPT",
 		_boss_options(),
-		func(id): _start_boss_attack(str(id)),
+		func(id): _show_qm_hacker_select(str(id)),
 		func(): _show_title(Content.fingerprint()),
 	)
 
@@ -1551,8 +1597,8 @@ func _start_boss_attack(boss_id: String) -> void:
 	_boss_attack_id = boss_id
 	_host_id = Content.BOSS_ATTACK_HOST_ID
 	_system_id = ""
-	# The canonical default build, not a mode-private copy (§10.2).
-	_qm_build = Session.default_build()
+	# The chosen pair's default build, not a mode-private copy (§10.2).
+	_qm_build = Content.default_build(_qm_hacker_id, _qm_deck_id)
 	_gameplay_seed = _next_gameplay_seed()
 	_replay_battle()
 
@@ -1564,11 +1610,14 @@ func _start_random_quick_match() -> void:
 	var rolled := Session.random_quick_match_setup(seeded["rng"])
 	_system_id = str(rolled["system_id"])
 	_host_id = str(rolled["host_id"])
+	_qm_hacker_id = str(rolled["hacker_id"])
+	_qm_deck_id = str(rolled["deck_id"])
 	# The ROLLED build becomes the one in play; the gameplay seed is drawn
 	# separately so setup and gameplay randomness stay independent (§17).
 	_gameplay_seed = _next_gameplay_seed()
 	SessionLog.quick_random_rolled(
-		int(seeded["seed"]), _gameplay_seed, _system_id, _host_id, rolled["build"]
+		int(seeded["seed"]), _gameplay_seed, _system_id, _host_id, rolled["build"],
+		_qm_hacker_id, _qm_deck_id,
 	)
 	# `_build` — the remembered constructed build — is left untouched. Both
 	# halves matter: replaying must use what was played, and a random match must

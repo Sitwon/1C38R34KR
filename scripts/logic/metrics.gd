@@ -142,6 +142,18 @@ class SideMetrics extends RefCounted:
 	## which is why those still sum to `total_damage` exactly.
 	var environment_damage_taken := 0
 
+	## Beta 0.6 health and charge aggregates. None of these is damage, so none
+	## joins `total_damage` or a bucket. HEAL is split into what landed and what
+	## the cap threw away; the Function SELF_DAMAGE cost is LINK/ICE this side
+	## PAID; direct charge is what EFFECT_CHARGE offered that its targets kept or
+	## discarded at their caps — never folded into `charge_wasted_total`, whose
+	## sources are the match-routing streams (D-070).
+	var heal_applied := 0
+	var heal_wasted := 0
+	var health_cost_paid := 0
+	var direct_charge_accepted := 0
+	var direct_charge_discarded := 0
+
 	## Cross-cutting: overlaps the buckets above and does NOT sum with them.
 	var cascade_damage := 0.0
 
@@ -178,6 +190,10 @@ class SideMetrics extends RefCounted:
 			"transform_damage": transform_damage, "passive_damage": passive_damage,
 			"buff_damage_added": buff_damage_added, "cascade_damage": cascade_damage,
 			"mine_damage": mine_damage, "environment_damage_taken": environment_damage_taken,
+			"heal_applied": heal_applied, "heal_wasted": heal_wasted,
+			"health_cost_paid": health_cost_paid,
+			"direct_charge_accepted": direct_charge_accepted,
+			"direct_charge_discarded": direct_charge_discarded,
 			"match_damage_color": match_damage_color, "match_damage_shape": match_damage_shape,
 			"crit_extra": crit_extra, "largest_hit": largest_hit,
 			"deepest_cascade": deepest_cascade, "tiles_destroyed": tiles_destroyed,
@@ -199,6 +215,11 @@ class SideMetrics extends RefCounted:
 		s.cascade_damage = float(d.get("cascade_damage", 0.0))
 		s.mine_damage = float(d.get("mine_damage", 0.0))
 		s.environment_damage_taken = int(d.get("environment_damage_taken", 0))
+		s.heal_applied = int(d.get("heal_applied", 0))
+		s.heal_wasted = int(d.get("heal_wasted", 0))
+		s.health_cost_paid = int(d.get("health_cost_paid", 0))
+		s.direct_charge_accepted = int(d.get("direct_charge_accepted", 0))
+		s.direct_charge_discarded = int(d.get("direct_charge_discarded", 0))
 		s.match_damage_color = float(d.get("match_damage_color", 0.0))
 		s.match_damage_shape = float(d.get("match_damage_shape", 0.0))
 		s.crit_extra = float(d.get("crit_extra", 0.0))
@@ -430,6 +451,19 @@ static func _consume_one(m: Battle, ev: Dictionary) -> void:
 		# so the figure stays verifiable against the routing events themselves.
 		Types.EVT.CHARGE_ROUTE:
 			m.side(int(ev["side"])).charge_wasted_total += int(ev.get("discarded", 0))
+
+		Types.EVT.HEAL:
+			var sm := m.side(int(ev["side"]))
+			sm.heal_applied += int(ev["applied"])
+			sm.heal_wasted += int(ev["wasted"])
+
+		Types.EVT.HEALTH_COST:
+			m.side(int(ev["side"])).health_cost_paid += int(ev["before"]) - int(ev["after"])
+
+		Types.EVT.DIRECT_CHARGE:
+			var sm := m.side(int(ev["side"]))
+			sm.direct_charge_accepted += int(ev["accepted"])
+			sm.direct_charge_discarded += int(ev["discarded"])
 
 		Types.EVT.DETONATE:
 			m.detonations += 1

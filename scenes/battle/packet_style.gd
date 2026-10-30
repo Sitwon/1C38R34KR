@@ -116,6 +116,7 @@ const CHARGE_FILL_READY := Color("f0c040")
 const CHARGE_TEXT_READY := Color("ffe080")
 
 const DAMAGE := Color("ff5a5a")
+const HEAL := Color("58c06a")  ## LINK_BAR's green: health going back in
 
 ## Overlay tints, indexed by `Tile.Special.Type`.
 const OVERLAY_TINT: Array[Color] = [

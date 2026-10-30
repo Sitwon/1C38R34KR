@@ -48,7 +48,7 @@ func _test_resolved_content(t: TestCase) -> void:
 	var sys_prog := Content.program("PRG_S_001")
 	t.eq("System Program is enemy-side", sys_prog["side"], Types.Side.ENEMY)
 
-	t.eq("player Program count", Content.programs_for(Types.Side.PLAYER).size(), 6)
+	t.eq("player Program count", Content.programs_for(Types.Side.PLAYER).size(), 24)
 	t.eq("enemy Program count", Content.programs_for(Types.Side.ENEMY).size(), 26)
 
 	var hacker := Content.hacker(Content.DEFAULT_HACKER_ID)

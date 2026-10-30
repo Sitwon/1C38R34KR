@@ -285,6 +285,7 @@ func fire_program(idx: int, target = null) -> Array:
 	state.phase = Types.Phase.RESOLVING
 	_cast_actor(Types.Side.PLAYER, {
 		"kind": Types.OwnerKind.PROGRAM, "id": prog["id"], "name": prog["name"], "fn": prog["fn"],
+		"unit_idx": idx,
 	}, events, target)
 	if not state.has_winner():
 		state.phase = Types.Phase.PLAYER_PRE
@@ -490,6 +491,12 @@ func _cast_op(owner: Types.Side, actor: Dictionary, op: Dictionary, events: Arra
 			_cast_shake(owner, actor, op, params, who, events)
 		Effects.DRAIN:
 			_cast_drain(owner, actor, op, who, target, events)
+		Effects.HEAL:
+			_cast_heal(owner, actor, op, params, who, events)
+		Effects.SELF_DAMAGE:
+			_cast_self_damage(owner, actor, op, params, who, events)
+		Effects.CHARGE:
+			_cast_charge(owner, actor, op, params, who, events)
 
 
 func _op_event(owner: Types.Side, actor: Dictionary, op: Dictionary, resolved: bool, drained := -1) -> Dictionary:
@@ -698,6 +705,114 @@ func _cast_shake(owner: Types.Side, actor: Dictionary, op: Dictionary, params: D
 		Resolve.resolve_cascades(state, owner, events, _shake_budget(sp["cascades"]), Types.DamageSource.MATCH, {}, "", {}, self)
 	# matches PREVENTED: the completed arrangement already satisfies the stable
 	# post-generation invariants, so no Sync wave begins.
+
+
+## EFFECT_HEAL (beta 0.6 §9): owner-side restoration, capped at the battle
+## maximum, excess wasted. Not negative damage — no Shield, Buff or damage
+## PASSIVE touches it — and it never resolves the board.
+func _cast_heal(owner: Types.Side, actor: Dictionary, op: Dictionary, params: Dictionary, who: String, events: Array) -> void:
+	var attempted := int(params.get("magnitude", 0))
+	var r := Resolve.heal(state, owner, attempted)
+	var evt := {
+		"t": Types.EVT.HEAL, "side": owner, "owner_kind": actor["kind"],
+		"program_id": actor["id"], "fn_id": op["fn_id"],
+		"before": r["before"], "attempted": attempted, "applied": r["applied"],
+		"wasted": r["wasted"], "after": r["after"],
+	}
+	if actor.has("cause"):
+		evt["cause"] = actor["cause"]
+	events.append(evt)
+	events.append(_op_event(owner, actor, op, true))
+	events.append({"t": Types.EVT.MSG, "text": "%s %s restored %d %s" % [
+		who, actor["name"], r["applied"], "LINK" if owner == Types.Side.PLAYER else "ICE",
+	]})
+
+
+## Function EFFECT_SELF_DAMAGE (beta 0.6 §10): a health COST the owner pays.
+##
+## Distinct from PSV_SELF_DAMAGE (D-061), which is environmental damage through
+## the ordinary funnel. This bypasses Shield and every damage modifier, credits
+## no one, and is not environmental damage either. A lethal cost ends the
+## battle on the spot; `_cast_actor` then stops, so later payloads in the same
+## chain never run — the event records how many were cut off.
+func _cast_self_damage(owner: Types.Side, actor: Dictionary, op: Dictionary, params: Dictionary, who: String, events: Array) -> void:
+	var cost := int(params.get("damage", 0))
+	var r := Resolve.pay_health(state, owner, cost)
+	var plan: Array = actor["fn"]["plan"]
+	var later := plan.size() - 1 - plan.find(op)
+	var evt := {
+		"t": Types.EVT.HEALTH_COST, "side": owner, "owner_kind": actor["kind"],
+		"program_id": actor["id"], "fn_id": op["fn_id"],
+		"before": r["before"], "cost": cost, "after": r["after"],
+		"lethal": r["lethal"], "aborted_ops": later if r["lethal"] else 0,
+	}
+	if actor.has("cause"):
+		evt["cause"] = actor["cause"]
+	events.append(evt)
+	events.append(_op_event(owner, actor, op, true))
+	events.append({"t": Types.EVT.MSG, "text": "%s %s cost %d %s" % [
+		who, actor["name"], cost, "LINK" if owner == Types.Side.PLAYER else "ICE",
+	]})
+	if r["lethal"]:
+		Resolve.end_battle(state, owner, events)
+
+
+## Direct EFFECT_CHARGE (beta 0.6 §11): `magnitude` offered to each target among
+## the owner's ACTIVE Programs, capped per target, excess discarded.
+##
+## The Deck Function's pool is never a target — it is not in the unit list at
+## all. Excess never enters match-charge overflow routing, and nothing here
+## creates board resolution or a synthetic Sync. A Program this makes ready is
+## ready like any other: the Hacker may fire it in the same pre-Sync window.
+func _cast_charge(owner: Types.Side, actor: Dictionary, op: Dictionary, params: Dictionary, who: String, events: Array) -> void:
+	var scope := int(params["charge"]["scope"])
+	var offered := int(params.get("magnitude", 0))
+	var source := int(actor.get("unit_idx", -1))
+	var units: Array = state.units[owner]
+
+	var idxs: Array[int] = []
+	if scope == Content.CHARGE_SCOPE_SELF:
+		if source < 0:
+			# The loader rejects a SELF scope on every source without a Program;
+			# reaching here means a new invocation path skipped that rule.
+			push_error("EFFECT_CHARGE scope SELF from %s %s, which has no activating Program" % [actor["kind"], actor["id"]])
+			events.append(_op_event(owner, actor, op, false))
+			return
+		idxs.append(source)
+	else:
+		for i in units.size():
+			if scope == Content.CHARGE_SCOPE_OTHER and i == source:
+				continue
+			idxs.append(i)
+
+	var targets: Array = []
+	var accepted_total := 0
+	var discarded_total := 0
+	for i in idxs:
+		var u: GameState.UnitState = units[i]
+		var before := u.charge
+		var discarded := Resolve.add_unit_charge(state, u, offered)
+		var accepted := u.charge - before
+		accepted_total += accepted
+		discarded_total += discarded
+		targets.append({
+			"idx": i, "program_id": u.program_id, "before": before,
+			"accepted": accepted, "after": u.charge, "discarded": discarded,
+		})
+
+	var evt := {
+		"t": Types.EVT.DIRECT_CHARGE, "side": owner, "owner_kind": actor["kind"],
+		"program_id": actor["id"], "fn_id": op["fn_id"], "scope": scope,
+		"offered": offered, "targets": targets,
+		"accepted": accepted_total, "discarded": discarded_total,
+	}
+	if actor.has("cause"):
+		evt["cause"] = actor["cause"]
+	events.append(evt)
+	events.append(_op_event(owner, actor, op, not targets.is_empty()))
+	events.append({"t": Types.EVT.MSG, "text": "%s %s charged %d Program%s (+%d)" % [
+		who, actor["name"], targets.size(), "" if targets.size() == 1 else "s", accepted_total,
+	]})
 
 
 ## Every live Mine overlay by placement seq, so a Shake can
@@ -1086,6 +1201,7 @@ func _run_system_function_phase(events: Array) -> void:
 		u.charge -= int(prog["cost"])
 		_cast_actor(Types.Side.ENEMY, {
 			"kind": Types.OwnerKind.PROGRAM, "id": prog["id"], "name": prog["name"], "fn": prog["fn"],
+			"unit_idx": pick["i"],
 		}, events, _system_target(prog["fn"]))
 
 

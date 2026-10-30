@@ -1700,3 +1700,175 @@ the two engines see the same meaning.
 Fingerprints move: live content to `ce01939e-fwf`, legacy to `ca95eed5-96w`.
 Both hash the raw tuple integers. `Save.SCHEMA` 4 → 5, because an armed Bomb
 saves its raw flags and a schema-4 Bomb would detonate with both inverted.
+
+---
+
+## D-068 — EFFECT_HEAL restores the owner, capped at the battle maximum
+
+**Beta 0.6 §9.**
+
+HEAL reads its amount from `magnitude` (integer, 0 or more, no `params`). It
+restores the **Effect owner's** LINK or ICE, side-generically, and caps at that
+side's **battle maximum**, `GameState.max_hp_of(side)`. That is the value the
+battle was built with (`config.player_hp` / `enemy_hp`), so it already
+includes the Deck's ADD_LINK, Run escalation and the manual settings. It is
+never the raw sheet value.
+
+Excess is wasted. HEAL is not negative damage: Shield, Buff, ARENA and every
+ability-rate PASSIVE leave it alone. It never resolves the board and cannot
+revive, because `Resolve.heal` applies nothing once a winner exists.
+
+One `heal` event per resolution carries before / attempted / applied /
+wasted / after, with the source Program (or Deck, or Boss) and the Function.
+`Resolve.heal` and `Resolve.pay_health` are the one seam for health changes
+that are not damage.
+
+---
+
+## D-069 — Function EFFECT_SELF_DAMAGE is a health cost, not damage
+
+**Beta 0.6 §10. Deliberately distinct from D-061's PSV_SELF_DAMAGE.**
+
+The amount comes from `damage` (integer, 0 or more, no `params`).
+`Resolve.pay_health` subtracts it straight from the owner's LINK/ICE,
+floored at 0. It never enters `deal_damage`, so:
+
+- Shield, Buff, ARENA and the ability-rate PASSIVEs never see it;
+- no `damage` event is emitted;
+- no opponent is credited;
+- it is not environmental damage either: `environment_damage_taken` is
+  D-061's alone.
+
+Metrics count it as `health_cost_paid`.
+
+**Lethal cost.** A cost that reaches 0 emits its `healthCost` event, then ends
+the battle through `Resolve.end_battle`, the same transition the damage
+funnel now uses. `_cast_actor` already stops at a winner, so later payloads in
+the chain never run. The event records `lethal` and `aborted_ops` (how many
+payloads were cut off). The activation charge already spent is not refunded.
+
+PSV_SELF_DAMAGE is unchanged. The test suite pins ACID's 10 as environmental
+damage that is not a health cost.
+
+---
+
+## D-070 — Direct EFFECT_CHARGE: owner's active Programs, per-target cap, excess discarded
+
+**Beta 0.6 §11.**
+
+The offer comes from `magnitude` (0 or more). `params` holds exactly one
+**scope**, an option list rather than a flag (D-067):
+
+- 0 SELF;
+- 1 OTHER_PROGRAMS;
+- 2 ALL_PROGRAMS.
+
+TARGETED_PROGRAM is not authored and does not exist.
+
+**Targets.** Only the owner's active battle units. The Deck pool is never in
+the unit list, so it can never be targeted. The activating Program reaches
+the cast as `actor.unit_idx`, set by `fire_program` and by the System phase.
+A Deck, PASSIVE or Boss actor has none, so OTHER from a Deck charges every
+active Program (TRANSFUSE).
+
+**SELF without a Program** fails twice over:
+
+- at **load**, `check_charge_self_sources` rejects a SELF scope reachable
+  from a Deck active, a PASSIVE carrier or a Boss mechanic Function;
+- at **runtime**, `push_error`, an unresolved op, and no target guessed.
+
+**Routing.** Each target independently uses `Resolve.add_unit_charge`
+(offer, cap at `charge_cap`, discard the rest). It never touches the
+match-stream router. It emits no `chargeRoute`, `chargeWaste` or `deckCharge`
+events, and nothing resolves on the board. One `directCharge` event carries
+the scope, the offer and a per-target list of before / accepted / after /
+discarded.
+
+**Metrics.** `direct_charge_accepted` and `direct_charge_discarded` are kept
+**out of** `charge_wasted_total`. That figure stays the match-routing waste
+it has always been, so the two kinds of charge waste can be compared rather
+than mixed.
+
+**Timing.** A Program made ready is ready. The pre-Sync window stays open
+after the Deck fires, and the Hacker may fire it at once. There is no new
+phase and no automatic fire. The System phase's at-most-once rule is
+untouched (§11.5).
+
+---
+
+## D-071 — Battle save schema 6, metrics schema 3, three new event types
+
+**Beta 0.6 §16. Director ruling Q4.**
+
+- **Metrics.** Each side gains `heal_applied`, `heal_wasted`,
+  `health_cost_paid`, `direct_charge_accepted` and
+  `direct_charge_discarded`. `BattleLog.METRICS_SCHEMA_VERSION` goes 2 → 3.
+- **Save.** The battle save carries that accumulator, so `SaveState.SCHEMA`
+  goes 5 → 6. Older saves are rejected (D-030).
+- **Events.** `heal`, `healthCost` and `directCharge` join `Types.EVT`.
+  `test_constants` pins 34 + 1 + 3 by name.
+- **Battle log.** Each is a high-value record at every level (`HEAL`,
+  `HEALTH_COST`, `DIRECT_CHARGE`), carrying the source Function and identity.
+- **Legacy stream.** Legacy content never produces these events, so the Alpha
+  event stream is unchanged. Fast parity stays 150/150.
+
+---
+
+## D-072 — Beta 0.6 live content fingerprint `8dc8bc04-mgi`
+
+**Beta 0.6 §17.**
+
+Computed from the exported 0.6 data and pinned once, as
+`test_content_expansion.LIVE_FINGERPRINT`. `test_passives` reads it from
+there.
+
+The CHARGE scope enters the fingerprint's Function plan only when present
+(`o["charge"]`), on the same rule as the Mine flags. Content with no CHARGE
+row therefore hashes exactly as before. HEAL and SELF_DAMAGE use the existing
+`mag` and `dmg` keys.
+
+The frozen legacy dataset and its fingerprint `ca95eed5-96w` are unchanged.
+
+---
+
+## D-073 — Quick Match and Boss Attack play a chosen Hacker and Deck; Random Quick Match rolls the pair
+
+**Beta 0.6 §6. Director rulings Q1 and Q2. Supersedes beta 0.4 §10.2's
+pinned pair for Boss Attack.**
+
+**Constructed Quick Match** runs System → HOST → Hacker → Deck → Build.
+**Boss Attack** runs Boss → Hacker → Deck, then starts at once on that pair's
+default build, still with no Build screen. Both reuse the Run's chooser cards
+and wording. Changing the pair resets the remembered constructed build, which
+is only legal for its own pair.
+
+`Session.create_quick_match` and `create_boss_attack` take `hacker_id` /
+`deck_id` as trailing defaults. Every harness and differential caller
+therefore stays on CR45H / AGIMA unchanged.
+
+**Random Quick Match** rolls Hacker, then Deck, then the alpha's
+build → System → HOST draw over **that pair's** inventory. The alpha draw is
+kept whole as `random_quick_match_tail`, so `route.json`'s alpha-parity
+fixture still pins it unchanged. A new test pins the two-draw prefix and
+shows that 64 seeds reach all 16 pairings. `quick_random_rolled` logs the
+pair.
+
+---
+
+## D-074 — One unsuffixed workbook again
+
+**Beta 0.6 §2. Director ruling Q3. Closes D-066's trial.**
+
+`staging/breach-datastructures.xlsx` is the single authoring source.
+`export_workbook.py` points at it, and `--check` is clean.
+
+Both other workbooks are deleted from the repository:
+
+- the pre-0.5 `breach datastructures.xlsx` (with a space);
+- the 0.5 `-working` copy.
+
+Nothing can copy stale values out of either.
+
+The supplied workbook was used exactly as delivered. A mechanical diff against
+the 0.5 working copy matched §2's delta cell for cell, and the coding agent
+made **no** workbook edits.

@@ -20,7 +20,7 @@ extends RefCounted
 ## of the content fingerprint — that is `DATA_SCHEMA_VERSION` plus the content
 ## rows — so bumping it cannot invalidate differential parity or reinterpret a
 ## battle. It identifies the BUILD; the fingerprint identifies the CONTENT.
-const GAME_VERSION := "beta-0.5.0"
+const GAME_VERSION := "beta-0.6.0"
 
 ## Bumped independently of the game version — it changes only when the shape of
 ## fingerprinted content changes. It is fingerprint input, so it must match the
@@ -132,6 +132,12 @@ const LINE_DIMENSION_COLUMN := 1
 const SPECIALS_DESTROY := 0
 const SPECIALS_RETAIN_ALL := 1
 const SPECIALS_RETAIN_OWN := 2
+
+## EFFECT_CHARGE: scope (beta 0.6 §11.2). The owner's ACTIVE battle Programs
+## only — never the Deck Function's pool, whatever the scope.
+const CHARGE_SCOPE_SELF := 0  ## the activating Program; invalid with no Program source
+const CHARGE_SCOPE_OTHER := 1  ## every active allied Program except the source
+const CHARGE_SCOPE_ALL := 2  ## every active allied Program, source included
 
 
 # ---------------------------------------------------------------------------

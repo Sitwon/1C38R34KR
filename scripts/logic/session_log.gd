@@ -214,11 +214,14 @@ static func run_abandoned(r: Run) -> void:
 ## would reintroduce exactly the coupling §17 forbids, and neither one alone
 ## reproduces the match.
 static func quick_random_rolled(
-	setup_seed: int, gameplay_seed: int, system_id: String, host_id: String, build: Array
+	setup_seed: int, gameplay_seed: int, system_id: String, host_id: String, build: Array,
+	hacker_id := Content.DEFAULT_HACKER_ID, deck_id := Content.DEFAULT_DECK_ID,
 ) -> void:
 	_emit(QUICK_RANDOM_ROLLED, 0, {
 		"setup_seed": setup_seed,
 		"gameplay_seed": gameplay_seed,
+		"hacker_id": hacker_id,
+		"deck_id": deck_id,
 		"system_id": system_id,
 		"host_id": host_id,
 		"build": build.duplicate(),

@@ -857,3 +857,47 @@ any pack. The Mine mark went through two revisions in minutes across six skins,
 because the pixel packs' spikes were too faint. On the device that would have
 cost an install cycle per revision. It also turned up the bzone digit problem
 (AN-026), which no build ever looked for.
+
+## Beta 0.6.0 — a delta you can diff is a delta you can trust
+
+The authorization shipped a mechanical workbook delta (the 0.5 handback asked
+for one), and a cell-by-cell diff against the 0.5 working copy matched it
+exactly. Phase A took minutes instead of an afternoon of reading notes against
+tuples. **Keep asking for the delta, and keep diffing it rather than trusting
+it**: the diff is what makes "no unexplained changes" a fact.
+
+## A smoke drift is explained by sections, not by totals
+
+The Content Pass 1 matrix came back 242 battles / 189 Hacker wins against 0.5's
+244 / 187. A total cannot say whether that is the intended Boss-loadout change
+or a broken seam. Running the 0.5 tree and diffing the whole output showed
+every section before the Run walks — matrix, UPGRADE battles, Function and
+HOST coverage, Mine causes — byte-identical; only the Run walks, which end in
+Boss battles, moved. That is an explanation; "it's probably the Bosses" is
+not. Cheap, because the 0.5 tree is one `git stash` away.
+
+## Python on Windows rewrites line endings
+
+`pathlib.Path.write_text` translates `\n` to `\r\n` on Windows. A dozen
+scripted edits silently turned LF source files into CRLF, and only git's
+"CRLF will be replaced by LF" warning on an unrelated `git stash` showed it.
+Scripted edits now go through a helper that reads and writes with
+`newline=""` and matches the file's own ending. The repo is mixed — the
+records are CRLF, the code LF — so "convert everything" is also wrong.
+
+## A harness that skips a real step fails for the wrong reason
+
+The new Run walks saved the session envelope from `PENDING_BUILD`, a phase the
+game never saves a battle from, and 125 "failures" followed. The game sets
+`ACTIVE_BATTLE` in `main._start_run_battle`, which the headless walk had never
+needed until it began exercising persistence. The 0.5 lesson again: build
+fixtures and harness steps the way the engine does, or the gate tests the
+harness.
+
+## Coverage gates need a policy that can reach the behaviour
+
+TRANSFUSE's whole point is a Program made ready and fired in the same window.
+The 0.5 smoke fires Programs, then the Deck, once — so it can never observe
+that. The 0.6 smoke fires until idle, and counts 40 same-window fires. The
+0.5 matrix kept its own policy so its numbers stay comparable; a gate's
+policy is part of what it measures.

@@ -26,9 +26,9 @@ import openpyxl
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-# Beta 0.5.0 only: the director's agentic-editing trial workbook is the authoring
-# source for this build. The next build returns to a single unsuffixed workbook.
-WORKBOOK = ROOT / "staging" / "breach-datastructures-working.xlsx"
+# One unsuffixed workbook is the authoring source (D-066; beta 0.6 retired the
+# 0.5 `-working` trial copy).
+WORKBOOK = ROOT / "staging" / "breach-datastructures.xlsx"
 DATA = ROOT / "data"
 
 # Sheet -> filename. Only these ship; anything else in the workbook is notes.

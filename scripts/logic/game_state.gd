@@ -119,6 +119,13 @@ func set_hp(side: Types.Side, value: int) -> void:
 	hp[side] = value
 
 
+## A side's BATTLE maximum LINK/ICE — the value the battle was constructed with,
+## which already includes the Deck's ADD_LINK, Run escalation, or the manual
+## settings. HEAL caps here (beta 0.6 §9.2); it is never the raw sheet value.
+func max_hp_of(side: Types.Side) -> int:
+	return int(config["player_hp" if side == Types.Side.PLAYER else "enemy_hp"])
+
+
 func tile_at(p: Vector2i) -> Tile:
 	if p.y < 0 or p.y >= Constants.BOARD_HEIGHT or p.x < 0 or p.x >= Constants.BOARD_WIDTH:
 		return null

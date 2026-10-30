@@ -15,8 +15,10 @@ extends RefCounted
 
 ## Workbook values, read back. If these drift the workbook changed, and the
 ## change should be deliberate.
-const LIVE_FINGERPRINT := "ce01939e-fwf"
-const LIVE_WARNINGS := 18
+## Beta 0.6 content (D-072). The 34 warnings are all non-fatal and pre-0.6 or
+## duplicate display names — listed in `test_content_pass_2.gd`.
+const LIVE_FINGERPRINT := "8dc8bc04-mgi"
+const LIVE_WARNINGS := 34
 
 const RED := Types.PacketColor.RED
 const BLUE := Types.PacketColor.BLUE
@@ -79,7 +81,7 @@ func _test_counts_and_pools(t: TestCase, loader: ContentLoader, result: Dictiona
 	t.eq("10 HOST rows", Content.all_hosts().size(), 10)
 	t.eq("10 UPGRADE rows", Content.all_upgrades().size(), 10)
 	t.eq("26 System Programs", Content.programs_for(Types.Side.ENEMY).size(), 26)
-	t.eq("40 Functions", loader.function_rows.size(), 40)
+	t.eq("67 Functions", loader.function_rows.size(), 67)
 	t.eq("20 PASSIVEs", loader.passive_rows.size(), 20)
 
 	var pool_sys := []
@@ -130,8 +132,7 @@ func _test_strong_sets(t: TestCase) -> void:
 		var s := Content.system(id)
 		t.eq_seq("%s strong colours" % id, s["strong_colors"], _tokens(want[id][0], Vocab.COLOR_TOKENS))
 		t.eq_seq("%s strong shapes" % id, s["strong_shapes"], _tokens(want[id][1], Vocab.SHAPE_TOKENS))
-	for b in Content.all_bosses():
-		t.eq_seq("%s strong colours" % b["id"], b["strong_colors"], _tokens(["GRE", "YEL", "BLU"], Vocab.COLOR_TOKENS))
+	# Boss axes changed again in beta 0.6 and are pinned in test_content_pass_2.
 
 
 func _tokens(names: Array, vocab: Dictionary) -> Array:

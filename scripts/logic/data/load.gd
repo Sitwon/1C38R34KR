@@ -1047,7 +1047,9 @@ func load_all() -> Dictionary:
 	check_references()
 	check_zero_cost_assignments()
 	check_carrier_executability()
+	check_charge_self_sources()
 	check_cross_portfolio()
+	check_program_placements()
 	check_minimum_content()
 
 	check_duplicate_display_names()
@@ -1746,6 +1748,8 @@ func _resolve_tuple(f: Dictionary, contract: Dictionary, effect_id: String, ctx:
 				c["value"] = raw
 				c["reason"] = "EFFECT_MINE has no enabled trigger — it can never deal damage"
 				issues.warn(c)
+		Effects.CHARGE:
+			out["charge"] = {"scope": vals[0]}
 		Effects.SHAKE:
 			out["shake"] = {
 				"boardComposition": vals[0], "specialGems": vals[1],
@@ -1998,6 +2002,9 @@ func _fingerprint_functions(used_areas: Dictionary) -> Array:
 			# key would change the hash of content that contains none.
 			if params.has("mine"):
 				o["mine"] = _tuple_array(params, "mine", Effects.MINE_FLAG_NAMES)
+			# Same rule for the beta 0.6 CHARGE scope.
+			if params.has("charge"):
+				o["charge"] = params["charge"]["scope"]
 			plan_out.append(o)
 
 		e["plan"] = plan_out
@@ -2351,6 +2358,55 @@ func check_carrier_executability() -> void:
 					"reason": "START_OF_TURN payload requires a manual target, which cannot be supplied during turn setup",
 				})
 				break
+
+
+## CHARGE scope SELF names "the activating Program" (beta 0.6 §11.2). A Deck
+## active, a PASSIVE carrier and a Boss mechanic payload have no Program to
+## name, so a SELF scope reachable from one of them is a content error found at
+## load rather than a target guessed at runtime.
+func check_charge_self_sources() -> void:
+	var sources: Array = []
+	for d in deck_rows:
+		sources.append({"fn": str(d["function_id"]), "row": d, "dataset": DataIssues.DATASET_DECKS, "field": "FUNCTIONS"})
+	for s in passive_rows:
+		if str(s["function_id"]) != "":
+			sources.append({"fn": str(s["function_id"]), "row": s, "dataset": DataIssues.DATASET_PASSIVES, "field": "function_payload"})
+	for id in Content.BOSS_MECHANIC_FUNCTION_IDS:
+		for f in function_rows:
+			if f["id"] == id:
+				sources.append({"fn": id, "row": f, "dataset": DataIssues.DATASET_FUNCTIONS, "field": "payload"})
+	for src in sources:
+		for op in (plans.get(src["fn"], []) as Array):
+			if op["effect_id"] != Effects.CHARGE:
+				continue
+			if int(op["params"]["charge"]["scope"]) == Content.CHARGE_SCOPE_SELF:
+				var row: Dictionary = src["row"]
+				issues.error({
+					"dataset": src["dataset"], "file": row["file"], "row": row.get("row", null),
+					"id": row["id"], "field": src["field"], "value": src["fn"],
+					"reason": "EFFECT_CHARGE scope 0 (SELF) needs an activating Program, and this source has none",
+				})
+				break
+
+
+## Each player Program belongs to exactly one Hacker or Deck Program set
+## (beta 0.6 §3). A warning, not an error: an unplaced or shared Program is
+## still mechanically sound, and the live-content tests pin zero of these.
+func check_program_placements() -> void:
+	var placed := {}
+	for r in hacker_rows + deck_rows:
+		for pid in (r["portfolio"] as Array):
+			(placed.get_or_add(pid, []) as Array).append(r["id"])
+	for p in program_rows:
+		if p["dataset"] != DataIssues.DATASET_HACKER_PROGRAMS:
+			continue
+		var owners: Array = placed.get(p["id"], [])
+		if owners.size() != 1:
+			issues.warn({
+				"dataset": p["dataset"], "file": p["file"], "row": p["row"], "id": p["id"],
+				"value": ":".join(PackedStringArray(owners)),
+				"reason": "player Program is placed in %d Hacker/Deck Program sets, expected exactly 1" % owners.size(),
+			})
 
 
 ## Every Deck is compatible with every Hacker, so EVERY pairing must be able to

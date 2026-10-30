@@ -55,18 +55,31 @@ static func random_build(inventory: Array, rng: Rng) -> Array:
 	return pool.slice(0, Content.ACTIVE_BUILD_SIZE)
 
 
-## Roll a complete Random Quick Match: build, then System, then HOST.
+## Roll a complete Random Quick Match: Hacker, Deck, build, System, HOST.
 ##
-## THAT ORDER IS THE CONTRACT, not a convenience. All three come from ONE
-## isolated setup stream, and the alpha draws the build first. Rolling the
-## System before the build would produce a different — still legal — result for
-## the same seed. Pinned by the fixture in `tests/fixtures/route.json`.
+## THAT ORDER IS THE CONTRACT, not a convenience. All five come from ONE
+## isolated setup stream. Beta 0.6 (D-073) put the Hacker and Deck in front, so
+## the build draws from the rolled pair's own six-Program inventory; through
+## 0.5 the pair was pinned and the build came first, as in the alpha. Pinned by
+## the fixture in `tests/fixtures/route.json`.
 ##
 ## Random Quick Match acquires no UPGRADEs, involves no Boss, and never writes
 ## to Constructed Quick Match's remembered build. It produces an ordinary
 ## standalone battle and opens no Build screen.
 static func random_quick_match_setup(rng: Rng) -> Dictionary:
-	var inventory := Content.inventory_program_ids(Content.DEFAULT_HACKER_ID, Content.DEFAULT_DECK_ID)
+	var hackers: Array = (Content.active()["hackers"] as Dictionary).keys()
+	var decks: Array = (Content.active()["decks"] as Dictionary).keys()
+	var hacker_id := str(hackers[rng.int_below(hackers.size())])
+	var deck_id := str(decks[rng.int_below(decks.size())])
+	var out := random_quick_match_tail(Content.inventory_program_ids(hacker_id, deck_id), rng)
+	out["hacker_id"] = hacker_id
+	out["deck_id"] = deck_id
+	return out
+
+
+## The alpha's Random Quick Match draw — build, then System, then HOST — over a
+## given inventory. Kept whole so the alpha-parity fixture still pins it.
+static func random_quick_match_tail(inventory: Array, rng: Rng) -> Dictionary:
 	return {
 		"build": random_build(inventory, rng),
 		"system_id": Route.random_system(rng),
@@ -88,10 +101,14 @@ static func create_quick_match(
 	# that want neither, and paying for records nobody reads would show up
 	# directly in the parity run's wall clock.
 	with_accounting := false,
+	# Beta 0.6 (D-073): Quick Match plays the chosen pair. The defaults keep
+	# every harness and differential caller on the canonical CR45H / AGIMA.
+	hacker_id := Content.DEFAULT_HACKER_ID,
+	deck_id := Content.DEFAULT_DECK_ID,
 ) -> GameState:
 	return _create_battle({
-		"hacker_id": Content.DEFAULT_HACKER_ID,
-		"deck_id": Content.DEFAULT_DECK_ID,
+		"hacker_id": hacker_id,
+		"deck_id": deck_id,
 		"opponent_kind": Types.OpponentKind.SYS,
 		"opponent_id": system_id,
 		"opponent_source": Types.SystemSelectionSource.QUICK_CONSTRUCTED,
@@ -117,9 +134,10 @@ static func create_quick_match(
 ## function would have meant a branch on opponent kind inside a Quick Match
 ## constructor, which is how the ladder gets applied to a Boss by accident.
 ##
-## The Hacker side is the canonical default build (§10.2), reached through
-## `default_build` rather than restated, so Boss Attack cannot drift from what
-## every other default-build path plays.
+## The Hacker side is the chosen pair's default build (§10.2; the pair became a
+## choice in beta 0.6, D-073), reached through `Content.default_build` rather
+## than restated, so Boss Attack cannot drift from what every other
+## default-build path plays.
 ##
 ## `HST_01` THRESHOLD is the authored choice because it contributes no HOST
 ## passive, which keeps a Boss test measuring the Boss.
@@ -130,10 +148,12 @@ static func create_boss_attack(
 	build: Array,
 	settings: Dictionary = {},
 	with_accounting := true,
+	hacker_id := Content.DEFAULT_HACKER_ID,
+	deck_id := Content.DEFAULT_DECK_ID,
 ) -> GameState:
 	return _create_battle({
-		"hacker_id": Content.DEFAULT_HACKER_ID,
-		"deck_id": Content.DEFAULT_DECK_ID,
+		"hacker_id": hacker_id,
+		"deck_id": deck_id,
 		"opponent_kind": Types.OpponentKind.BOS,
 		"opponent_id": boss_id,
 		"opponent_source": Types.SystemSelectionSource.BOSS_ATTACK,

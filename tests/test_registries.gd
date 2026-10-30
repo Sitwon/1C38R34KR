@@ -10,8 +10,8 @@ extends RefCounted
 
 const FIXTURE := "res://tests/fixtures/registries.json"
 
-## Registered in beta 0.5 and absent from the alpha, by design.
-const BETA_ONLY_EFFECTS := [Effects.MINE]
+## Registered in beta 0.5 / 0.6 and absent from the alpha, by design.
+const BETA_ONLY_EFFECTS := [Effects.MINE, Effects.HEAL, Effects.SELF_DAMAGE, Effects.CHARGE]
 const BETA_ONLY_PASSIVES := [
 	PassiveEffects.COUNTDOWN_ADJUST, PassiveEffects.ABILITY_DAMAGE_RATE,
 	PassiveEffects.PACKET_DROP_RATE, PassiveEffects.SELF_DAMAGE,

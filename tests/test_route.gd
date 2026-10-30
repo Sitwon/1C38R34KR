@@ -138,7 +138,9 @@ func _test_quick_match_parity(t: TestCase, fixture: Dictionary) -> void:
 	for seed_key in cases:
 		var want: Dictionary = cases[seed_key]
 		var rng := Rng.new(int(seed_key))
-		var got := Session.random_quick_match_setup(rng)
+		# The alpha's draw over the canonical pair. Beta 0.6 rolls the pair in
+		# front of it (D-073); that prefix is pinned below.
+		var got := Session.random_quick_match_tail(inventory, rng)
 
 		t.eq("seed %s build" % seed_key, got["build"], want["build"])
 		t.eq("seed %s System" % seed_key, got["system_id"], str(want["systemId"]))
@@ -151,6 +153,25 @@ func _test_quick_match_parity(t: TestCase, fixture: Dictionary) -> void:
 		t.check("seed %s HOST is in pool" % seed_key, pool_hosts.has(got["host_id"]))
 		t.check("seed %s build is legal" % seed_key, Content.is_valid_build(got["build"], inventory))
 
+	# D-073 — Hacker, then Deck, then the alpha draw over THAT pair's inventory.
+	var hackers: Array = (Content.active()["hackers"] as Dictionary).keys()
+	var decks: Array = (Content.active()["decks"] as Dictionary).keys()
+	var pairs := {}
+	for seed_value in 64:
+		var a := Rng.new(seed_value)
+		var full := Session.random_quick_match_setup(a)
+		var b := Rng.new(seed_value)
+		var h := str(hackers[b.int_below(hackers.size())])
+		var d := str(decks[b.int_below(decks.size())])
+		var tail := Session.random_quick_match_tail(Content.inventory_program_ids(h, d), b)
+		t.eq("seed %d rolls Hacker then Deck then the rest" % seed_value,
+			[full["hacker_id"], full["deck_id"], full["build"], full["system_id"], full["host_id"], a.get_state()],
+			[h, d, tail["build"], tail["system_id"], tail["host_id"], b.get_state()])
+		t.check("seed %d build is legal for its pair" % seed_value,
+			Content.is_valid_build(full["build"], Content.inventory_program_ids(h, d)))
+		pairs["%s/%s" % [h, d]] = true
+	t.eq("64 rolls reach all sixteen pairings", pairs.size(), hackers.size() * decks.size())
+
 	# §22.31 — setup randomness never perturbs the gameplay stream.
 	var gameplay := Rng.new(31)
 	var control := Rng.new(31)
@@ -162,7 +183,7 @@ func _test_quick_match_parity(t: TestCase, fixture: Dictionary) -> void:
 	var made := Session.make_setup_random()
 	t.check("unseeded setup source reports its seed", int(made["seed"]) >= 0)
 	var rolled := Session.random_quick_match_setup(made["rng"])
-	t.check("unseeded roll is legal", Content.is_valid_build(rolled["build"], inventory))
+	t.check("unseeded roll is legal", Content.is_valid_build(rolled["build"], Content.inventory_program_ids(rolled["hacker_id"], rolled["deck_id"])))
 
 
 func _test_initial_route(t: TestCase) -> void:

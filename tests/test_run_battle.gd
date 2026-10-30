@@ -329,8 +329,9 @@ func _test_boss_battle(t: TestCase) -> void:
 	var names := PackedStringArray()
 	for pid in (s.identity["system_programs"] as Array):
 		names.append(str(Content.program(pid)["name"]))
-	t.eq("which is DISABLER, SHIELDER, SPAMBOT, ATTACKER",
-		names, PackedStringArray(["DISABLER", "SHIELDER", "SPAMBOT", "ATTACKER"]))
+	# Beta 0.6 §7 replaced the placeholder loadout with ODANSHAY's own.
+	t.eq("which is DISABLER, SMOGGER, SHIELDER, ATTACKER",
+		names, PackedStringArray(["DISABLER", "SMOGGER", "SHIELDER", "ATTACKER"]))
 	t.eq("and they are resolved as units", (s.units[Types.Side.ENEMY] as Array).size(), boss["programs"].size())
 
 	# §21.7 — the committed HOST and every acquired UPGRADE reach the battle.

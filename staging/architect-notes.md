@@ -1245,3 +1245,115 @@ LineSlice were flipped to match, in the engine, the workbook, its param notes
 and the frozen legacy dataset. The project now has one flag vocabulary. Item 3
 of the original note ("state polarity next to the column") is also done: the
 param notes sheet carries a convention line.
+
+---
+
+## AN-029 — SEEDMINE and TRIPWIRE look the same on the board
+
+**Beta 0.6. Found on the tablet.**
+
+Both draw the one canonical Mine mark (D-053). Only their countdowns (3 and
+5) tell them apart, and only until those tick. Yet NEEDLE's whole identity is
+that the two need **opposite** answers:
+
+- slice a SEEDMINE and it fires; blast it and it does not;
+- blast a TRIPWIRE and it fires; slice it and it does not.
+
+A player who cannot see which is which is guessing, and so is the opponent
+facing them. The remedy is presentation, and only Mines need it: the trigger
+profile is already stamped on every Mine. Options:
+
+- a mark variant per profile (a slice glyph against a blast glyph);
+- a colour for each profile;
+- a long-press readout.
+
+Out of scope here (§22). Worth deciding before NEEDLE is balance-tested,
+because a player who cannot see the difference will read as a weak identity.
+
+---
+
+## AN-030 — One name, two things: BULWARK
+
+**Beta 0.6.**
+
+`PRG_H_020` BULWARK (BASTION's heavy shields) and `UPG_10` BULWARK (enemy
+ability damage −25%) share a display name. The loader warns, as AN-024's rule
+says it should. Unlike the 25 Function/Program pairs that share a name by
+design, these are unrelated things a player can hold at the same time. A Run
+with BASTION that takes the UPGRADE shows "BULWARK" twice, meaning two
+different things. One of them wants renaming in the workbook. This build did
+not rename it (§23).
+
+---
+
+## AN-031 — Buff damage is credited to one Program per side
+
+**Beta 0.6. Predates 0.6; 0.6 content makes it matter.**
+
+`Metrics._buff_program_id` credits a side's whole `buff_damage_added` to the
+first active Program whose Function places a Buff. Its own comment notes this
+is safe only while a side has at most one Buff source. A RAZE build can now
+field OVERDRAW, SALVE and SURGE at once, so the per-Program figures will
+over-credit one and zero the others. The side total stays right. The fix is
+to stamp the placing Program on each Buff overlay (it already carries
+`program_id`) and attribute the bonus from the live overlays. That is a
+metrics change, so it was left for a build that can bump the metrics schema
+on purpose.
+
+---
+
+## AN-032 — Boss Attack is nearly unwinnable for the bot
+
+**Beta 0.6 balance observation. Not tuned (§1, §26).**
+
+In the Boss smoke, the bot Hacker won **1 of 64** Boss Attack battles. That
+is every pairing against every Boss, on default builds. The bot plays badly,
+but the gap is structural:
+
+- every Boss has 350 ICE;
+- a Hacker reaches at most 170 LINK (VITRA + BASTION);
+- a Boss Attack carries no UPGRADEs.
+
+The structural Run walks needed 16 forced wins across 16 Runs. Worth putting
+beside the director's own Boss Attack play before deciding whether the Boss
+ICE, the mode, or neither should move.
+
+---
+
+## AN-033 — The Deck active reads as the Deck, not its Function
+
+**Beta 0.6. Predates 0.6.**
+
+A Deck activation's actor name is the Deck's, so the log reads "Hacker fires
+BLEEDLINE … Hacker BLEEDLINE cost 20 LINK". TRANSFUSE, the Function the
+workbook named and the chooser card advertises, never appears in battle.
+That was harmless with SCRAMBLE alone; with four Deck actives, the player
+learns a Function name on the Deck card and never sees it again. A
+presentation choice for the director: show the Deck, the Function, or
+"Deck → Function".
+
+---
+
+## AN-034 — The results screen does not show the new aggregates
+
+**Beta 0.6.**
+
+Healing applied and wasted, the LINK paid as cost, and direct charge accepted
+and discarded are all in the metrics record (D-071) and the battle log. The
+results screen does not list them, because each line is a `GAME_UI_REPORT_*`
+row in `text_content`, and this build pins that sheet at its authored 292
+rows. Three report rows, plus three lines in `main._show_metrics`, would
+surface them.
+
+---
+
+## AN-035 — Long Program names clip on the Build screen's candidate buttons
+
+**Beta 0.6.**
+
+The Build screen's 3×2 candidate grid clips to the button width. On the
+tablet, BLOODSPIKE renders as "BLOODSPIK". On the S25 it is worse:
+"OVERDRA", "BLOODSPI", "CHARGEPA". The slot header above it shows the
+full name, so the choice is still readable. As names lengthen (TRANSFUSE,
+CHARGEPACK, BLOODSPIKE), a smaller font step or a two-line button would fit
+them.

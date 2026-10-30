@@ -154,6 +154,44 @@ static func add_deck_charge(state: GameState, owner: Types.Side, amount: int) ->
 
 
 # ---------------------------------------------------------------------------
+# Health changes that are not damage (beta 0.6)
+# ---------------------------------------------------------------------------
+#
+# HEAL and the Function SELF_DAMAGE cost write LINK/ICE directly. Neither is
+# damage, so neither goes through `deal_damage`: no Shield, no Buff, no
+# Function-damage or ability-rate PASSIVE, and no damage event for metrics to
+# credit to an opponent. This is the one seam for both, so the two cannot grow
+# their own copies of the clamp or the defeat check.
+
+## Restores up to `amount` to `side`, capped at its battle maximum. Never
+## revives: a decided battle is not touched. Returns the before/applied/wasted
+## split the caller reports.
+static func heal(state: GameState, side: Types.Side, amount: int) -> Dictionary:
+	var before := state.hp_of(side)
+	var room := maxi(0, state.max_hp_of(side) - before)
+	var applied := 0 if state.has_winner() else mini(maxi(0, amount), room)
+	state.set_hp(side, before + applied)
+	return {"before": before, "applied": applied, "wasted": amount - applied, "after": before + applied}
+
+
+## Pays `amount` of `side`'s own LINK/ICE as a resource cost, floored at zero.
+## A lethal cost ends the battle at once; the caller reports the cost first and
+## then calls `end_battle`, so the stream reads cost-then-over like damage does.
+static func pay_health(state: GameState, side: Types.Side, amount: int) -> Dictionary:
+	var before := state.hp_of(side)
+	var after := maxi(0, before - maxi(0, amount))
+	state.set_hp(side, after)
+	return {"before": before, "after": after, "lethal": after <= 0}
+
+
+## The battle-end transition, shared by the damage funnel and the health cost.
+static func end_battle(state: GameState, loser: Types.Side, events: Array) -> void:
+	state.winner = Types.opponent_of(loser)
+	state.phase = Types.Phase.OVER
+	events.append({"t": Types.EVT.OVER, "winner": state.winner})
+
+
+# ---------------------------------------------------------------------------
 # Damage application
 # ---------------------------------------------------------------------------
 
@@ -246,9 +284,7 @@ static func deal_damage(state: GameState, target: Types.Side, amount: int, info:
 	events.append(evt)
 
 	if state.hp[target] <= 0:
-		state.winner = Types.opponent_of(target)
-		state.phase = Types.Phase.OVER
-		events.append({"t": Types.EVT.OVER, "winner": state.winner})
+		end_battle(state, target, events)
 
 
 ## PSV_FUNCTION_DAMAGE_INCREASE, applied in ONE place so every Function damage

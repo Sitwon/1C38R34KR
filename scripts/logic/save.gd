@@ -42,7 +42,11 @@ extends RefCounted
 ## Bumped to 5 (D-067): an armed Bomb saves its raw deal-damage and gain-charge
 ## flags, and their polarity flipped. A schema-4 Bomb would detonate with both
 ## inverted, so it is rejected rather than reinterpreted.
-const SCHEMA := 5
+##
+## Bumped to 6 (beta 0.6): the metrics accumulator in the envelope gained the
+## heal, health-cost and direct-charge aggregates (metrics schema 3). Rejected
+## rather than resumed with those counters silently starting from zero (D-030).
+const SCHEMA := 6
 const SAVE_PATH := "user://save.json"
 
 
