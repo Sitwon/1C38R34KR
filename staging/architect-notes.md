@@ -1071,3 +1071,145 @@ Extending the tool to take `--pack <name>` / `--all` is small and was attempted;
 it is recorded here rather than rushed into a content build's closeout. Worth
 doing before the art phase, when hand-authored packs start arriving faster than
 anyone will inspect them.
+
+---
+
+## AN-020 — ARENA and the ability-damage rate disagree about cascade waves
+
+**Beta 0.5.**
+
+A Function's Bomb or LineSlice can open a cascade. The engine attributes the
+resulting Syncs to the Function's damage source, so that ability-damage bonuses
+can reach them. ARENA (+2 to Function damage) has always applied to those
+waves, and the Alpha does the same, so DEEPSCAN pins it.
+
+The director ruled (Q8) that MEGATON/BULWARK's rate applies only to the direct
+hit (D-054). The waves are therefore "ability damage" for ARENA and "match
+damage" for the rate. Each rule is defensible on its own; together they are
+inconsistent.
+
+**For the next doc:** decide once what a cascade wave set off by a Function
+*is*, and have every ability-damage modifier follow that answer. Changing ARENA
+would break DEEPSCAN parity on legacy data by design, so it wants an explicit
+ruling rather than a coder's tidy-up.
+
+---
+
+## AN-021 — The workbook generator inverts flag polarity, and the vocabularies disagree
+
+**Beta 0.5. The director will raise this with the editor agent before the next pass.**
+
+On five of the new Bomb/LineSlice rows (STOMP, SHELL, PEPPER, NECTAR, SPOTTER),
+the `dealDamage`/`gainCharge` flags were authored reversed. As written, every
+new System bomb dealt no damage, which contradicted every row note. SPOTTER's
+note reproduced its intent word for word once the last two flags were flipped.
+Those rows were corrected in the working workbook (D-066).
+
+The underlying hazard is that **the project has two flag vocabularies**:
+
+| Where | `0` means | `1` means |
+| --- | --- | --- |
+| Bomb, LineSlice: `dealDamage`, `gainCharge` | yes | no |
+| Mine: all six triggers | no | yes |
+
+Either convention is fine; mixing them is not. An author, human or agent,
+carries one convention from one row to the next. The loader cannot catch the
+error, because both values are legal.
+
+**Options for the next doc, in order of preference:**
+
+1. Name the flags by what `1` means (`noDamage`, `noCharge`), so each column
+   heading states its polarity.
+2. Move to a single convention across all flags. That is a data migration.
+3. At minimum, have the param notes sheet state the polarity of each column
+   alongside the column, not in prose elsewhere.
+
+---
+
+## AN-022 — Two rulings to make explicit in the next requirement doc
+
+**Beta 0.5. Director rulings Q5 and Q6, flagged for clarification.**
+
+1. **FURNACE / `ALL`.** §9 said "+1 per sliced Packet under the established
+   rule". The established rule is once per Sync event, and that is what was
+   built (D-062). Per-Packet would be roughly 3–5× stronger. If per-Packet was
+   the intent, it is a new mechanic, not a selector widening, and it should be
+   specified as one.
+2. **A Mine caught in 4-in-a-line collateral.** It is classified as *destroyed*,
+   not *sliced* (D-053), following the workbook's param notes. That classification decides
+   whether VOLATILE fires, so it deserves to be in the rules text rather than a
+   notes sheet.
+
+---
+
+## AN-023 — Boss loadouts are placeholders, and now identical
+
+**Beta 0.5. Director ruling Q1.**
+
+The workbook changed all four Bosses' strong sets (to `GRE:YEL:BLU` /
+`SQU:STR:CIR`). The director confirmed the strong values are correct: they now
+match each Boss's actual Program loadout. Those loadouts are still the
+placeholder System Programs, so all four Bosses now share the same strong sets.
+Recorded so it is not mistaken for a generation error later. Boss content was
+out of scope for 0.5 (§23).
+
+---
+
+## AN-024 — Load warnings the new content introduced
+
+**Beta 0.5.** The live load is clean of errors and carries 18 warnings, all
+expected.
+
+- **Ten Function/Program duplicate display names**: TUSK, STOMP, THICKHIDE,
+  FORAGE, SIGHT, SPOTTER, FRENZY, PEPPER, STATIC and NECTAR. Each System Program
+  shares its name with the Function it casts. These are new in 0.5. The
+  long-standing pair (PRG_S/PRG_H ATTACKER and DISABLER) accounts for two more.
+
+  The warning exists so a player can tell two things apart, and here the player
+  only ever sees the Program, so it is noise. Options: stop comparing names
+  across the Program/Function boundary, or give Functions distinct names.
+- **PSV_018–PSV_020 are unreferenced** by design (§2), and are covered
+  synthetically in `test_content_expansion.gd`.
+- **FNC_007–009, the SHOWCASE example chain, are unreferenced.** This
+  predates 0.5. The 0.5 fix to `check_unreferenced_functions` makes the children
+  of a *referenced* composite count as referenced. Without it, every child of
+  FORAGE would have warned. SHOWCASE itself is referenced by nothing, so its
+  children still correctly warn.
+
+---
+
+## AN-025 — Balance observations, deliberately unchanged
+
+**Beta 0.5.** The smoke matrix is a mechanical gate, not a balance ladder (§19).
+These figures are reported here only so they are not lost.
+
+- **The Hacker won 187 of 244 smoke battles (≈77%)** with the bot and the
+  default build. This was not compared against a pre-0.5 baseline, so it is a
+  number to track, not a finding.
+- **SHELL and NECTAR fired only twice each** across the matrix. Both have long
+  countdowns or high costs, so they rarely resolve before the battle ends.
+
+---
+
+## AN-026 — bzone's countdown digits are hard to read on every armed overlay
+
+**Beta 0.5. Found while checking the Mine; it predates 0.5.**
+
+In the bzone pack, the countdown digits drawn on an armed overlay (Bomb, Buff,
+Mine alike) sit on a busy vector mark with low contrast, and they are hard to
+read at phone scale. No other pack has the problem. Final art direction is out
+of scope (§22), so this is recorded rather than fixed. A digit backing plate, or
+a per-pack digit colour in the pack spec, would cover it.
+
+---
+
+## AN-027 — Test fixtures ship in the APK
+
+**Beta 0.5. Found while auditing the export; it predates 0.5.**
+
+`tests/fixtures/*.json` are included in the exported APK. They are about
+228 KB of Alpha-generated reference data that the game never reads. The new
+`tests/fixtures/legacy_data/` is excluded by its `.gdignore`. Adding `tests/*`
+to the export preset's exclude filter would cover the rest; it was left alone
+because changing the export preset in a content build's closeout is the kind of
+boundary change that has bitten before (lessons-learned, 0.3.2).

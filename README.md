@@ -10,51 +10,66 @@ intended — see [The differential gate](#the-differential-gate).
 
 ## Status
 
-**`beta-0.4.0` — four Bosses, three new rule sets, and a mode that gets you to
-them in two taps.**
+**`beta-0.5.0`: the first ordinary-content expansion. The roster roughly
+doubles, and one new Effect and five new PASSIVE mechanics run on the seams
+that were already there.**
 
-0.3.0 finished the reference port; 0.3.1 gave it a replaceable graphics pack and
-0.3.2 an external text framework. 0.4.0 begins content expansion with the
-mechanically densest category, to find out whether that framework can carry
-several materially different Boss behaviours without another rewrite. It can:
-every Boss rule is orchestration in `scripts/logic/boss.gd`, and the only shared
-machinery added is one post-settle hook and one placement primitive.
+0.4.0 proved the framework could carry Bosses. 0.5.0 asks whether it can carry
+breadth: eight new Systems with eighteen new Programs and Functions, five new
+HOSTs and six new UPGRADEs, all authored in a workbook that an agent edited for
+the first time. It can.
 
-| Boss | ICE | Mechanic |
+- **`EFFECT_MINE`** is the one new Effect. It is a countdown special with six
+  trigger flags, classified at the moment it is removed.
+- **The new PASSIVEs** are countdown adjust, ability-damage rate, packet drop
+  rate, environmental self-damage and the strong-slice bonus, plus an `ALL`
+  selector for match damage.
+- **Each one is a calculation seam**, not a branch on a name.
+
+| Content | Count | Pool |
 | --- | ---: | --- |
-| ODANSHAY | 350 | Overrides toward a threshold, then CODESHATTER and REBOOT |
-| RAHNDAHL | 350 | Discharges `2^n` for the Capacitors on the board, then places another |
-| NEHBOCYET | 350 | Clears the bottom row each phase; a Logic Bomb that settles there detonates |
-| ECHOFALL | 350 | Hides a Packet axis on alternate phases; a blind mistake costs 30 |
+| Systems | 11 | 10 random; DOORMAN fixed for Battle 1 |
+| HOSTs | 10 | 9 random; THRESHOLD fixed for Battle 1 |
+| UPGRADEs | 10 | all in the reward pool |
+| System Programs | 26 | |
+| Functions | 40 | |
+| PASSIVEs | 20 | PSV_018–020 authored, unreferenced, synthetically covered |
 
 | Phase | State |
 | --- | --- |
-| A — ingest and audit | ✅ |
-| B — workbook and text content | ✅ ten rows imported by the director |
-| C — Boss-special identities and art in all six packs | ✅ |
-| D — RAHNDAHL | ✅ |
-| E — NEHBOCYET and the post-settle hook | ✅ |
-| F — ECHOFALL, state and presentation | ✅ |
-| G — Boss Attack | ✅ |
-| H — regression and device | ✅ tablet; S25 carried forward with stated reasoning |
-| I — closeout | ✅ see `staging/1c38r34kr-beta-0.4.0-boss-content-handback.md` |
+| A — inspect and diff | ✅ ten questions resolved with the director before build |
+| B — content and text ingest | ✅ through the real exporter; 66 `text_content` rows added |
+| C — Mine, multi-Effect payloads, Transform to NEU, Mine art in six packs | ✅ |
+| D — PASSIVE capability | ✅ |
+| E — System/HOST/UPGRADE integration | ✅ |
+| F — regression and content sweep | ✅ one real defect found and fixed |
+| G — device | ⏳ tablet pass pending |
+| H — closeout | ✅ see `staging/1c38r34kr-beta-0.5.0-initial-content-expansion-handback.md` |
 
 | Gate | State |
 | --- | --- |
-| Headless logic tests | ✅ 3,475 passing across 25 suites |
-| Boss-specific coverage | ✅ 119 assertions in `test_boss_04.gd` |
-| Workbook round-trip | ✅ `export_workbook.py --check` clean |
-| Asset pack structural checks | ✅ now covering all six special marks |
-| Asset bundles | ✅ 59 assets + palette in each of six packs |
-| Texture imports | ✅ 360/360 correct |
-| Battle parity (fast, 150 battles) | ✅ 150/150 — the settle hook is inert off-Boss |
-| Boss parity | ⚠️ diverges by design at 350 ICE — **60/60 with the alpha's 250 restored**, so ODANSHAY's mechanics are bit-identical |
-| Tablet device pass | ✅ all four Bosses played through Boss Attack |
-| S25 device pass | ➖ carried forward — no battle-layout geometry changed |
+| Headless logic tests | ✅ 4,096 passing across 26 suites |
+| Focused 0.5 coverage | ✅ `test_content_expansion.gd`, every §18 item |
+| Content smoke matrix | ✅ 244 battles, every new Function fired, every HOST and UPGRADE fired, 20/20 Runs |
+| Workbook round-trip | ✅ `export_workbook.py --check` clean against the working workbook |
+| Asset bundles | ✅ 61 assets + palette in each of six packs |
+| Texture imports | ✅ 372/372 correct |
+| Battle parity, legacy data (fast) | ✅ 150/150 |
+| DEEPSCAN, legacy data | ✅ 5,250/5,250, no divergence |
+| Android export | ✅ clean; CSVs and Mine art verified inside the APK |
+| Tablet device pass | ⏳ pending |
+| S25 device pass | ➖ expected carry-forward: phone geometry is emulated on the tablet |
 
-Deliberately **not** in 0.4.0: a Boss scripting language or data-driven passive
-DSL, Boss-specific Program rosters, balance tuning, final art, VFX, audio, and
-any content category other than Bosses.
+**The Alpha oracle has narrowed, not retired.** Live content diverges from the
+Alpha deliberately. The differential now runs against
+`tests/fixtures/legacy_data/`, a frozen copy of the pre-0.5 CSVs, where it
+proves that every shared code path 0.5 touched still matches the Alpha bit for
+bit. The new mechanics are proven by their own tests and by the smoke matrix
+(D-058).
+
+Deliberately **not** in 0.5.0: balance tuning, new Hacker or Deck content, Boss
+changes, a passive DSL or Mine trigger language, final art, and any change to
+Run length or reward rules.
 
 ### Devices
 
@@ -452,11 +467,12 @@ player fought one battle and the Run believed in another.
 
 ### Content
 
-Ten CSV datasets are the source of truth. They are marked `importer="keep"` so
+Thirteen CSV datasets are the source of truth, exported from the workbook by
+`tools/export_workbook.py`. They are marked `importer="keep"` so
 Godot's translation importer leaves them alone, and `*.csv` is in the export
 filter so the raw files ship inside the APK.
 
-Content is hashed into a **fingerprint** (`49c229cd-8ma`) using a JS-compatible
+Content is hashed into a **fingerprint** (`617fbf1a-fwf` as of beta 0.5) using a JS-compatible
 canonical JSON encoding, so the beta and the alpha agree on the hash for
 identical content. The fingerprint appears on the title screen, in every save,
 and on every battle log record — it is the first question worth asking when a
@@ -467,12 +483,15 @@ rejected rather than restored against different rules than it was made under.
 
 | File | What it is |
 | --- | --- |
-| `staging/1c38r34kr-beta-0.3.0-build-authorization.md` | the scope and completion standard this build answers to |
+| `staging/1c38r34kr-beta-0.5.0-initial-content-expansion-authorization.md` | the scope and completion standard this build answers to |
+| `staging/1c38r34kr-beta-0.5.0-initial-content-expansion-handback.md` | **the 0.5 close-out**: verdict, deviations, and feedback for the architect |
+| `staging/breach-datastructures-working.xlsx` | the 0.5 authoring workbook (this build only, D-066) |
+| `staging/1c38r34kr-beta-0.3.0-build-authorization.md` | the beta 0.3 scope |
 | `staging/1c38r34kr-beta-0.3.0-authorization-review.md` | the pre-implementation review of it |
 | `staging/1c38r34kr-beta-0.2.0-build-authorization-revised.md` | the previous build's scope |
 | `staging/1c38r34kr-beta-0.2.0-authorization-review.md` | the pre-implementation review of it, and the seven items that needed resolving |
 | `staging/1c38r34kr-beta-0.1.0-build-authorization.md` | the previous build's scope, kept for reference |
-| `staging/decisions.md` | append-only decision log, D-001..D-046 |
+| `staging/decisions.md` | append-only decision log, D-001..D-066 |
 | `staging/port-notes.md` | every place the translation is non-literal, P-001..P-045 |
 | `staging/architect-notes.md` | design items raised during the port that must **not** be built as part of it |
 | `staging/1c38r34kr-beta-0.3.0-port-handback.md` | **the close-out** — what shipped, what the verification caught, and the final diff review |

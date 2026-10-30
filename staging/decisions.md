@@ -1335,3 +1335,323 @@ The envelope gained `boss_phase` and `hidden_axis`. A schema-2 save has neither,
 and resuming an ECHOFALL battle with concealment silently cleared would change
 what the next move means — so it is rejected rather than repaired, which is also
 the standing pre-release position on saves across a version (D-030).
+
+---
+
+## D-053 — `EFFECT_MINE`: six trigger flags, classified at removal
+
+**Beta 0.5 §6, §25.1. Director rulings Q6, Q7.**
+
+The tuple is positional and fixed:
+
+```
+slicedByOwner : slicedByOpponent : destroyedByOwner : destroyedByOpponent : destroyedByHost : expires
+```
+
+with `1` meaning *fires*. That is the opposite polarity to the Bomb/LineSlice
+`dealDamage`/`gainCharge` flags (`0` = yes). The reversal is deliberate, since
+it is how the workbook authors it, and it is recorded as a hazard in AN-021. A
+Mine whose six flags are all zero loads with a warning: it is inert, which is
+legal but almost certainly not meant.
+
+`quantity` is required. `countdown` and `damage` are required but may be 0
+(`allow_zero`), because a 0-countdown Mine and a 0-damage Mine are both
+meaningful synthetic cases.
+
+**A Mine's removal is classified once, at the moment it happens**, into one of
+`slice_owner`, `slice_enemy`, `destroy_owner`, `destroy_enemy`, `destroy_host`,
+`expire`. The responsible side is the side whose action is resolving.
+
+- **Slice:** a cell directly in a matched Sync (including cascade waves), or in
+  a LineSlice footprint.
+- **Destroy:** Bomb blasts; 4-in-a-line row/column collateral (Q6: the
+  workbook's param notes list "4 match" under *destroyed*); Transform/Shake
+  overlay stripping; and Boss overwrites (placement, overrides, NEHBOCYET's
+  bottom-row clear).
+- **Host:** an operation performed by a HOST-sourced carrier, **but only its
+  direct footprint.** A cascade that the carrier sets off is ordinary play by
+  the active side.
+
+  The direct-footprint limit fixes a real defect, which the smoke matrix found.
+  VOLATILE Mines sliced in a cascade set off by a WEEDS carrier were classified
+  `destroy_host`, so they silently never fired. The `direct` argument on
+  `mine_removed` carries the distinction.
+
+**Ordering (Q7):** a Mine's damage lands *after* the removing action's own
+damage, and the oldest Mine (by placement sequence) fires first. If the
+action's damage is lethal, no Mine fires. Mine damage goes through
+`deal_damage` with the new source `DamageSource.MINE`, so it gets the same
+treatment as other Function damage: the owner's live Buff, ARENA, the
+ability-damage rate (D-054), and then Shield.
+
+**Expiry:** a Mine that reaches countdown 0 is removed. It deals damage only if
+`expires` is set. VOLATILE's is not, so its Mines vanish harmlessly.
+
+Mines save their `damage` and `triggers` in the battle save (D-064).
+
+---
+
+## D-054 — Ability damage rate: summed, applied once, truncated, direct hits only
+
+**Beta 0.5 §8.2, §25.2. Director ruling Q8.**
+
+Every active `PSV_ABILITY_DAMAGE_RATE` instance that affects the *attacker* is
+summed into one percentage, which is then applied once:
+
+```
+scaled = max(0, amount * (100 + rate) / 100)     # integer division, truncates toward zero
+```
+
+So MEGATON +50 with BULWARK −25 is +25, not ×1.5×0.75. The rate is applied
+inside `deal_damage`, before Shield, so every Function damage source (ATTACK,
+Bomb, LineSlice, Mine) passes through one seam. Any Buff or PASSIVE
+contribution inside the hit is scaled in proportion, so the battle log's
+breakdown still sums to the total.
+
+It does **not** apply to:
+
+- Sync (match) damage;
+- PASSIVE `SELF_DAMAGE`, which is environmental (D-061);
+- **cascade waves that follow a Function's Bomb or LineSlice (Q8).** The engine
+  attributes those follow-on Syncs to the Function's damage source, so without
+  a rule they would be rate-modified as ability damage. To a player they are
+  match damage in every sense. They carry `"wave": true` and are skipped.
+  ARENA's +2 still applies to them, which is inconsistent; see AN-020.
+
+---
+
+## D-055 — Packet drop rate is relative weighting in percent units
+
+**Beta 0.5 §8.3, §25.3.**
+
+Each `PSV_PACKET_DROP_RATE` names one colour or shape and a percentage. Every
+value on that axis starts at weight 100, and each active instance adds its
+percentage to its target's weight. With two RED +15 instances, RED weighs 130
+against 100 for each other colour. Instances add in weight space; they never
+compound.
+
+- **One `rng.next()` draw per axis**, scaled by the weight total and walked. The
+  RNG is consumed exactly as before, so the stream stays aligned.
+- **With no modifier active, the generator is unweighted** and runs the
+  original `int_below` path. Every pre-0.5 seed reproduces bit for bit, which is
+  why the Alpha differential still matches on legacy data (D-058).
+- **The neutral rate is unchanged.** Whether a cell is neutral is decided before
+  the axis draw; the weights only redistribute among the real values.
+- The modifier is board-wide, so it applies whoever owns it. An `ENEMY` scope
+  would be ambiguous, so it is a load error.
+- It applies to initial board generation and to refill alike. The initial
+  board's no-match redraw keeps its existing 200-attempt guard, and it cannot
+  get stuck: a weight only changes a value's odds, and no value ever drops to
+  zero weight.
+
+---
+
+## D-056 — Transform to `NEU` clears both axes and strips the overlay
+
+**Beta 0.5 §10, §25.4. Director ruling Q9.**
+
+`axisResult=NEU` makes the Packet neutral, clearing both its colour and its
+shape. The standing rule that a neutral Packet carries no overlay (the premise
+of D-048) is **kept**. A Transform to NEU therefore destroys any overlay on the
+target, whatever the special-retention flag says.
+
+SMOG was authored `0:1` ("retain all"), which that rule makes impossible to
+honour, so the workbook row was changed to `0:0`. The data now says what the
+engine does. As a result, §10's "retained overlay on a neutral carrier" case
+cannot arise from authored content. A Mine stripped this way is classified as
+destroyed by the casting side.
+
+---
+
+## D-057 — Multi-Effect leaf payloads: one column, one owner
+
+**Beta 0.5 §5.1.**
+
+A leaf Function payload may now list several `EFFECT_*` ids (STOMP:
+`EFFECT_ATTACK` then `EFFECT_BOMB`). They run in authored order, one plan op
+each, and the cost is paid once. If an earlier Effect is lethal, the battle
+ends and the rest never resolve.
+
+Each Effect reads only the columns its own contract names. **Two Effects in one
+row claiming the same column is a load error**, and so is more than one Effect
+owning the tuple. This is the narrowest contract that makes STOMP executable
+without inventing per-Effect column prefixes. Composite payloads (`FNC_*`
+children) remain one level deep and are unchanged.
+
+---
+
+## D-058 — The Alpha oracle narrows to a frozen legacy dataset
+
+**Beta 0.5 §17, §25.5.**
+
+Live content now differs from the Alpha's on purpose: new Systems, new Effects,
+and changed SYS_01–03 strong sets. Running the differential on live data would
+fail by design. A gate that fails by design ends up either ignored or argued
+with.
+
+Instead, `tests/fixtures/legacy_data/` freezes the thirteen pre-0.5 CSVs. They
+were taken with `git show` from the last 0.4 commit, and a `.gdignore` keeps
+them out of the export. `trace.gd` and `parity.mjs` take `--data`, and the
+differential now runs on that fixture. On it:
+
+- fast tier: 150/150 battles identical;
+- **DEEPSCAN: 5,250/5,250, no divergence** across the default, reinforced,
+  timer and uncapped matrices.
+
+This proves something worth proving. **Every shared code path the 0.5 work
+touched** (`deal_damage`, cascade resolution, refill, countdown delivery,
+placement) still behaves exactly as the Alpha's on content both engines share.
+It can prove nothing about Mine, the new PASSIVEs or the new rows; that is now
+the job of `test_content_expansion.gd` and `tools/content_smoke.gd`.
+
+The loader, CSV and validation suites also run on the legacy fixture, and so
+does the replay of the Alpha's route fixture (through
+`tests/legacy_profile.gd`). They compare against Alpha-generated JSON, and that
+JSON describes legacy content. This extends D-045 and D-051; it does not
+supersede them.
+
+---
+
+## D-059 — System Functions with no targeting rule pick a random valid target
+
+**Beta 0.5. Director ruling Q3.**
+
+The System never supplies a manual target. A System Program whose Function asks
+for a Packet target, such as SPOTTER's targeted row LineSlice, would previously
+have spent its charge and done nothing.
+
+The general rule is now: **where no explicit targeting algorithm exists, the
+System picks uniformly at random among the cells that would be valid for the
+Hacker.** The pick is drawn from the battle RNG, so it stays deterministic.
+Existing rules are untouched (DRAIN's deterministic targeting, for example). No
+data change was needed, and no load error was added.
+
+---
+
+## D-060 — Countdown adjustment applies at placement, and floors at zero
+
+**Beta 0.5 §8.1.**
+
+`PSV_COUNTDOWN_ADJUST` is a signed integer. All active instances that affect
+the placing side are summed, and the total is applied **when a countdown
+special is placed**. It never changes an overlay already on the board.
+
+- Mines always have a countdown, so they are always adjusted.
+- Bombs and Buffs are adjusted only if their authored countdown is above 0, so
+  instant Bombs stay instant.
+- The result floors at 0, and **a special adjusted to 0 is delivered at once**,
+  in placement order. FRENZY (countdown 1) under FLOORIT −1 goes live
+  immediately.
+- A PASSIVE event records `countdown` and `base_countdown`, so the log shows the
+  adjustment rather than an unexplained number.
+
+---
+
+## D-061 — SELF_DAMAGE is environmental damage
+
+**Beta 0.5 §8.4.**
+
+ACID hits the active combatant at the start of its turn, before countdowns
+tick, with the new source `DamageSource.PASSIVE`.
+
+- It goes through the ordinary damage funnel, so Shield and lethal checks
+  apply. A lethal hit ends the battle before countdowns or actions continue.
+- The ability-damage rate never touches it.
+- Metrics credit it to the *target's* `environment_damage_taken`, never to the
+  opponent's damage dealt. The battle log's per-bucket breakdown skips it for
+  the same reason: ACID is not the opponent hitting you.
+
+---
+
+## D-062 — FURNACE and `ALL`: once per Sync, never per Packet
+
+**Beta 0.5 §9. Director ruling Q5.**
+
+`PSV_EXTRA_MATCH_DAMAGE`'s first param widens from a colour to a **selector**:
+a colour, a shape, or `ALL`. `ALL` qualifies every Sync on any axis, neutral
+included. As for every existing row, the bonus is added **once per qualifying
+Sync event** (times the critical multiplier). §9's "+1 per sliced Packet"
+contradicted its own "under the established rule", and the established rule
+won.
+
+Axis-specific and wildcard instances stack additively.
+
+`PSV_STRONG_SLICE_BONUS` is the per-Packet mechanic:
+
+- It counts each sliced Packet that is strong on the slicing axis.
+- A dual-axis-strong Packet is counted once, never twice.
+- It applies to Sync and LineSlice slices, but not to Bomb or Mine destruction.
+
+---
+
+## D-063 — Required-ID lists are not extended; exact counts are pinned in tests
+
+**Beta 0.5. Coder's interpretation.**
+
+`vocab.gd`'s required-ID lists name the content the engine cannot run without.
+Adding every 0.5 row to them broke the legacy-fixture load (D-058), and that is
+the one thing those lists must not do. The new content is optional to the
+*engine*, so it stays off the lists.
+
+The authored counts are pinned in `test_content_expansion.gd` and
+`test_run_state.gd` instead, where a missing row fails loudly against live data:
+
+- 11 Systems
+- 10 HOSTs
+- 10 UPGRADEs
+- 26 System Programs
+- 40 Functions
+- 20 PASSIVEs
+
+---
+
+## D-064 — Battle save schema 4, metrics schema 2
+
+**Beta 0.5 §15, §16.**
+
+`Save.SCHEMA` moves 3 → 4 because Mine tiles now carry `damage` and `triggers`.
+A schema-3 save is rejected, per D-030. `SessionSave.SCHEMA` stays at 3.
+
+`BattleLog.METRICS_SCHEMA_VERSION` moves 1 → 2 for a new `mine` damage bucket
+and for `environment_damage_taken` (D-061).
+
+The content fingerprint moves to `617fbf1a-fwf`. It is pinned once, in
+`test_content_expansion.gd`, and `test_passives.gd` reads it from there.
+
+---
+
+## D-065 — The Mine reads as a spiked ring, not a filled disc
+
+**Beta 0.5 §7.**
+
+A Bomb is a filled body with a fuse. The Mine is an open ring with eight
+outward spikes, drawn by `mine()` in `tools/gen_boss_marks.py`. That generator
+writes `mark_mine`/`ring_mine` deterministically into all six packs.
+
+On the board, the mark is tinted with `OVERLAY_TINT[MINE]` and carries
+countdown digits, as other armed overlays do. Ownership comes from the existing
+ownership badge, with no new visual channel.
+
+The spikes were enlarged after desktop screenshots of each pack: in the pixel
+packs, the first version read only as a ring. In every skin, an armed Mine and
+an armed Bomb are now distinguishable at phone scale.
+
+---
+
+## D-066 — The working workbook is this build's authoring source
+
+**Beta 0.5. Director ruling Q10.**
+
+For this build only, `staging/breach-datastructures-working.xlsx` is the
+authoring source, as a trial of agentic workbook editing. Every edit to it was
+scripted:
+
+- the `CONTNUAL` typo;
+- the Bomb/LineSlice flag corrections (AN-021);
+- SMOG;
+- 66 new `text_content` rows.
+
+`export_workbook.py` points at the working copy, so `--check` gates the CSVs
+against the file they actually came from. The old master is untouched. **The
+next build returns to a single unsuffixed workbook, and the exporter path goes
+back with it.**
