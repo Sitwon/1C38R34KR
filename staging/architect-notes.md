@@ -1213,3 +1213,24 @@ a per-pack digit colour in the pack spec, would cover it.
 to the export preset's exclude filter would cover the rest; it was left alone
 because changing the export preset in a content build's closeout is the kind of
 boundary change that has bitten before (lessons-learned, 0.3.2).
+
+---
+
+## AN-028 — Two small legibility points from the S25 pass
+
+**Beta 0.5.**
+
+1. **A Bomb armed on a star Packet can read as a Mine at a glance.** The
+   Mine's identity is its spiked ring. A Bomb's round badge sitting on a star
+   Packet is framed by the star's own points, which look much like spikes at
+   phone scale. On the S25, one such Bomb was taken for a new Mine until the
+   board was replayed. The badge interiors differ, so a careful look settles
+   it; a quick one may not. Worth weighing when the art direction is chosen:
+   a Mine-specific ring colour, or a shape for the Mine's countdown disc that a
+   star cannot imitate.
+2. **Colour tokens render title-cased.** CERULEAN reads "Deal 1 extra damage
+   on a **Blu** sync". `Vocab.title_case` of the three-letter code has always
+   been the rule for PASSIVE colour tokens (EDGE reads "Red"), and it is
+   harmless for RED, but `Blu`, `Gre`, `Yel`, `Mag` and `Cya` read as typos. A
+   display-name lookup for colours in `text_content` would let the director
+   choose the words.

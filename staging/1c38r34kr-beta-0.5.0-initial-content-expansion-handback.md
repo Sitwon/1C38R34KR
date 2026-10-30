@@ -10,8 +10,9 @@ the next requirement doc.
 
 ## 1. Verdict
 
-**Complete against the authorization, except the tablet play pass (§20, §27
-items 47–50).** The tablet was off the network at closeout; see §13.
+**Complete against the authorization.** The tablet's battery was flat at
+closeout, so at the director's direction the §20 device pass ran on the S25
+instead (§13–§14).
 
 Every headless gate is green:
 
@@ -236,29 +237,64 @@ suites also run on the legacy fixture.
 
 ## 13. Tablet result
 
-**⏳ Pending: the tablet was unreachable at closeout.** Both
-`adb connect 192.168.1.14:5555` and a ping time out, so the device is off the
-network, not refusing ADB.
+**Not run: the tablet's battery was flat.** At the director's direction, the
+device pass moved to the S25 (§14).
 
-The planned pass:
+## 14. S25 result
 
-- SAPPER/VOLATILE (placement, slicing, harmless expiry);
-- MAMMOTH, ARCHON, STATICIAN;
-- FLOORIT/HAIRTRIGGER, MEGATON, BULWARK, ACID, FURNACE;
-- a multi-UPGRADE Run;
-- chooser scrolling, MISSING text and overflow at `wm size 1080x2340`;
-- the debug `ovl` row in each skin;
-- a clean `godot` log.
+**Pass, with two defects found and fixed.** The run used
+`build/1c38r34kr.apk` on an SM-S938U at its native 1080×2340, so no geometry
+emulation was needed.
 
-The APK is built and verified, ready to install.
+- **Install, launch, log.** Clean. No `ERROR`, `SCRIPT ERROR` or `FATAL` in
+  the Godot log or the full logcat.
+- **Choosers.**
+  - The System list (11), HOST list (10) and Boss list all fit at phone
+    width with no horizontal overflow.
+  - Long Weak lines (HARRIER, LEECH, STATICIAN, ORCHID) wrap cleanly.
+  - The lists scroll by the scrollbar. The two-finger gesture is by design
+    (AN-002); `adb input` cannot produce it.
+  - No MISSING text. All new HOST and UPGRADE PASSIVE text renders, including
+    `+50%`, `-1`, `15%` and `-25%`.
+- **Run route screen.** The new UPGRADEs (BULWARK, CERULEAN) are offered with
+  readable text.
+- **SAPPER on FLOORIT, played six turns by hand.**
+  - PROXMINE charged and cast VOLATILE: four System Mines, each with countdown
+    **3** (4, then FLOORIT −1).
+  - My Sync through a Mine fired it for **20 to the Hacker**, *after* my own
+    match damage.
+  - The System's own Sync through another Mine fired it for 20 (`slice_owner`).
+  - All of this matches D-053.
+- **Mine presentation.**
+  - A spiked ring with a black centre (System) or white centre (Hacker),
+    clearly distinct from the round Bomb badge.
+  - Countdown digits are legible.
+  - Checked live in all six skins on the phone. bzone's digits are small but
+    readable (AN-026).
+- **The device pass replayed headlessly.** The battle (seed 315250118, six
+  recorded swaps) was replayed with `Game` directly. It reproduced the device
+  exactly (LINK 135 → 132 → 126 → 111 → 94 → 43), which is how the first defect
+  below was diagnosed.
 
-## 14. S25
+**Defects found on the device:**
 
-**Expected carry-forward.** No battle-layout geometry changed. The Mine reuses
-the existing overlay slot, and the enlarged chooser lists use the existing
-scroll containers. Phone geometry is emulated on the tablet with `wm size`. If
-that pass shows anything geometry emulation cannot settle, one batched S25
-window will be requested, per protocol.
+1. **The debug `ovl` stamp reused placement numbers.** It numbered its
+   overlays from 0 and never advanced `state.next_seq`. VOLATILE's Mines then
+   received numbers already held by stamped overlays still on the board.
+   `_tick_countdowns` finds an overlay by number, so it ticked a stamped
+   DISABLER overlay instead of a Mine, which stayed at 3.
+
+   Debug-only: real placements always take `next_seq`. Fixed so the stamp now
+   draws from and advances the battle's counter. The replay confirms every Mine
+   ticks.
+2. **The title still read "beta 0.4".** `Content.GAME_VERSION` is bumped to
+   `beta-0.5.0`. It identifies the build only, not the content fingerprint.
+
+Not covered on the device, beyond the automated matrix: MAMMOTH, ARCHON and
+STATICIAN; MEGATON, BULWARK, ACID and FURNACE in live play; and a full Run
+through later battles. These need a human playing at length, which `adb` taps
+cannot reasonably substitute for. They are recommended for the director's own
+play on the next device session.
 
 ## 15. Boundary checks
 
@@ -271,7 +307,7 @@ window will be requested, per protocol.
 | `check_assets.gd` (v0) | clean, including `mark_mine` |
 | `fix_imports.py --check` | 372/372 |
 | Android export | 0 errors; CSVs (`importer="keep"`) and Mine art confirmed inside the APK; `legacy_data` excluded |
-| Install, launch, device log | ⏳ with the tablet pass |
+| Install, launch, device log | ✅ S25, clean |
 
 ## 16. Defects found
 
@@ -286,9 +322,12 @@ window will be requested, per protocol.
    - SMOG's retention flag could not be honoured.
 
    All three were corrected in the workbook by script.
-4. **The first Mine mark's spikes were invisible in the pixel packs.**
+4. **On the S25: the debug `ovl` stamp reused placement numbers**, so one
+   Mine never ticked; and the **title still read "beta 0.4"**. Both are fixed
+   (§14).
+5. **The first Mine mark's spikes were invisible in the pixel packs.**
    Enlarged.
-5. **Test-only problems:**
+6. **Test-only problems:**
    - fixture actors lacked `kind`, which raised a silent SCRIPT ERROR;
    - an accidental 4-match in a fixture;
    - a vacuous frequency assertion;
@@ -327,7 +366,7 @@ The §25 requirements map as follows:
 
 ## 18. Architect notes
 
-AN-020 through AN-027 were added; none were resolved.
+AN-020 through AN-028 were added; none were resolved.
 
 | Note | Topic |
 | --- | --- |
@@ -339,6 +378,7 @@ AN-020 through AN-027 were added; none were resolved.
 | AN-025 | Balance observations |
 | AN-026 | bzone digit legibility |
 | AN-027 | Test fixtures ship in the APK |
+| AN-028 | An armed Bomb on a star Packet reads as spiked; colour tokens render as `Blu` |
 
 ## 19. Lessons learned
 
@@ -431,7 +471,12 @@ Appended under "Beta 0.5.0":
 9. **Give device-dependent completion items a fallback.** The 55-item standard
    is thorough. Separating the headless gate from the device gate, and saying
    what to do when the device is unavailable, would let a build close cleanly
-   and record the device pass as its own step.
+   and record the device pass as its own step. This build's tablet was flat
+   at closeout, and the director redirected the pass to the S25.
+11. **Say which play checks need a human.** "Play SAPPER, MAMMOTH, ARCHON…"
+    reads as one task. Placement and visual checks are self-serve through
+    `adb`. Feel and longer play are not, and listing them separately would
+    keep a device window short.
 10. **For agent-edited workbooks, ask for a change log from the editor agent.**
     The notes-versus-tuple cross-check found the flag errors. A log of what the
     editor changed and why would let the coder check intent rather than infer

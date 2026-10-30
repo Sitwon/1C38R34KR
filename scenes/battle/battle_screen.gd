@@ -503,7 +503,11 @@ func _debug_seed_overlays() -> void:
 	if _playing or state.has_winner():
 		return
 
-	var seq := 0
+	# Placement numbers come from the battle's own counter. Countdown ticking
+	# finds an overlay by its number, so a stamped overlay reusing one that a
+	# later real placement also takes makes the tick hit the wrong overlay —
+	# exactly how the S25 pass saw a VOLATILE Mine that never ticked.
+	var seq := state.next_seq
 	# Rows 0 and 1: every type, live, once per owner. Live rather than armed
 	# because an ARMED overlay shows its countdown whatever it will deliver —
 	# so an armed row would show four identical digits and no marks at all.
@@ -522,6 +526,7 @@ func _debug_seed_overlays() -> void:
 	# for, in both ownerships.
 	ax = _stamp_overlay(2, ax, Types.Side.PLAYER, Tile.Special.Type.MINE, 4, seq + 2)
 	_stamp_overlay(2, ax, Types.Side.ENEMY, Tile.Special.Type.MINE, 3, seq + 3)
+	state.next_seq = seq + 4
 
 	_refresh_board()
 

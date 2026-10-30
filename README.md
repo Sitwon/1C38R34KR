@@ -43,7 +43,7 @@ the first time. It can.
 | D — PASSIVE capability | ✅ |
 | E — System/HOST/UPGRADE integration | ✅ |
 | F — regression and content sweep | ✅ one real defect found and fixed |
-| G — device | ⏳ tablet pass pending |
+| G — device | ✅ S25 (tablet battery flat); two defects found and fixed |
 | H — closeout | ✅ see `staging/1c38r34kr-beta-0.5.0-initial-content-expansion-handback.md` |
 
 | Gate | State |
@@ -57,8 +57,8 @@ the first time. It can.
 | Battle parity, legacy data (fast) | ✅ 150/150 |
 | DEEPSCAN, legacy data | ✅ 5,250/5,250, no divergence |
 | Android export | ✅ clean; CSVs and Mine art verified inside the APK |
-| Tablet device pass | ⏳ pending |
-| S25 device pass | ➖ expected carry-forward: phone geometry is emulated on the tablet |
+| Tablet device pass | ➖ not run, battery flat; replaced by the S25 pass |
+| S25 device pass | ✅ VOLATILE placed, ticked and fired as specified; choosers fit and scroll; clean log |
 
 **The Alpha oracle has narrowed, not retired.** Live content diverges from the
 Alpha deliberately. The differential now runs against
